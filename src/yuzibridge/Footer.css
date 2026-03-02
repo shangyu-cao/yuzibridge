@@ -1,0 +1,92 @@
+/* src/components/footer/Footer.css */
+.footer {
+  background-color: #FFFFFF;
+  padding: 30px 0;
+  border-top: 1px solid rgba(0, 0, 0, 0.05);
+  margin-top: auto;
+  width: 100%;
+}
+
+.container {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 0 20px;
+}
+
+.footer-content {
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  flex-direction: column;
+}
+
+.footer-info {
+  text-align: center;
+}
+
+/* 版权信息样式 */
+.copyright {
+  color: #666666;
+  font-size: 1rem;
+  font-weight: 400;
+  line-height: 1.6;
+  margin-bottom: 10px;
+}
+
+/* 底部链接样式 */
+.footer-links {
+  display: flex;
+  align-items: center;
+  gap: 15px;
+  flex-wrap: wrap;
+  justify-content: center;
+  margin-top: 15px;
+}
+
+.footer-link {
+  color: #4A90E2;
+  text-decoration: none;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: color 0.3s ease;
+}
+
+.footer-link:hover {
+  color: #7B68EE;
+  text-decoration: underline;
+}
+
+.separator {
+  color: #CCCCCC;
+  font-weight: 300;
+}
+
+/* 响应式设计 */
+@media (max-width: 768px) {
+  .footer {
+    padding: 25px 0;
+  }
+  
+  .copyright {
+    font-size: 0.9rem;
+    line-height: 1.5;
+  }
+}
+
+@media (max-width: 480px) {
+  .footer {
+    padding: 20px 0;
+  }
+  
+  .copyright {
+    font-size: 0.85rem;
+  }
+  
+  .footer-links {
+    gap: 10px;
+  }
+  
+  .footer-link {
+    font-size: 0.85rem;
+  }
+}
