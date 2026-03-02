@@ -1,0 +1,262 @@
+.menu-page {
+  min-height: 100vh;
+  padding: 24px;
+  background: #f5f7fb;
+  color: #111827;
+}
+
+.menu-shell {
+  max-width: 1180px;
+  margin: 0 auto;
+  background: #ffffff;
+  border-radius: 16px;
+  box-shadow: 0 8px 24px rgba(17, 24, 39, 0.08);
+  overflow: hidden;
+}
+
+/* ===== Header ===== */
+.menu-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 16px;
+  padding: 20px 24px;
+  border-bottom: 1px solid #e5e7eb;
+}
+
+.menu-header__brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.menu-header__logo {
+  width: 52px;
+  height: 52px;
+  border-radius: 12px;
+  object-fit: cover;
+}
+
+.menu-header__logo--fallback {
+  display: grid;
+  place-items: center;
+  background: #eef2ff;
+  color: #3730a3;
+  font-weight: 700;
+}
+
+.menu-header__store-name {
+  margin: 0;
+  font-size: 1.375rem;
+  line-height: 1.2;
+}
+
+.menu-header__language {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.menu-header__language-label {
+  font-size: 0.875rem;
+  color: #4b5563;
+}
+
+.menu-header__language-select {
+  border: 1px solid #d1d5db;
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: #fff;
+  color: #111827;
+}
+
+/* ===== Main ===== */
+.menu-main {
+  display: grid;
+  grid-template-columns: 250px 1fr;
+  min-height: 540px;
+}
+
+/* ===== CategorySidebar ===== */
+.category-sidebar {
+  border-right: 1px solid #e5e7eb;
+  padding: 20px;
+  background: #fafafa;
+}
+
+.category-sidebar__title {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  color: #111827;
+}
+
+.category-sidebar__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.category-sidebar__button {
+  width: 100%;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #ffffff;
+  color: #111827;
+  padding: 10px 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  cursor: pointer;
+}
+
+.category-sidebar__button:hover {
+  border-color: #c7d2fe;
+}
+
+.category-sidebar__button--active {
+  border-color: #818cf8;
+  background: #eef2ff;
+}
+
+.category-sidebar__count {
+  font-size: 0.75rem;
+  color: #4b5563;
+}
+
+.category-sidebar__empty {
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+/* ===== Right menu content ===== */
+.menu-content {
+  padding: 20px;
+}
+
+.menu-content__title {
+  margin: 0 0 16px;
+  font-size: 1.125rem;
+}
+
+.menu-content__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+  gap: 14px;
+}
+
+.menu-content__empty {
+  margin: 0;
+  color: #6b7280;
+}
+
+/* ===== MenuItemCard ===== */
+.menu-item-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+}
+
+.menu-item-card__image {
+  width: 100%;
+  height: 140px;
+  object-fit: cover;
+}
+
+.menu-item-card__content {
+  padding: 12px;
+}
+
+.menu-item-card__top-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.menu-item-card__name {
+  margin: 0;
+  font-size: 1rem;
+}
+
+.menu-item-card__price {
+  color: #0f766e;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.menu-item-card__description {
+  margin: 8px 0 10px;
+  color: #4b5563;
+  font-size: 0.9rem;
+}
+
+.menu-item-card__allergens {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.menu-item-card__allergen-tag {
+  font-size: 0.75rem;
+  color: #7c2d12;
+  background: #ffedd5;
+  border: 1px solid #fed7aa;
+  border-radius: 999px;
+  padding: 2px 8px;
+}
+
+/* ===== Footer ===== */
+.menu-footer {
+  border-top: 1px solid #e5e7eb;
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 24px;
+  background: #fcfcfd;
+}
+
+.menu-footer__left p,
+.menu-footer__right p {
+  margin: 0 0 4px;
+  color: #4b5563;
+  font-size: 0.9rem;
+}
+
+.menu-footer__social-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+}
+
+.menu-footer__social-link {
+  color: #1d4ed8;
+}
+
+@media (max-width: 900px) {
+  .menu-page {
+    padding: 12px;
+  }
+
+  .menu-main {
+    grid-template-columns: 1fr;
+  }
+
+  .category-sidebar {
+    border-right: 0;
+    border-bottom: 1px solid #e5e7eb;
+  }
+
+  .menu-footer {
+    flex-direction: column;
+  }
+}

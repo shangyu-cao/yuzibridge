@@ -1,10 +1,6 @@
 import React, { useState } from 'react';
 import "./App.css";
-import Header from './yuzibridge/Header';
-import Footer from './yuzibridge/Footer';
-
-function App() {
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
+import logo from "./assets/logo.png";
 
   return (
     <div className="App">
@@ -22,42 +18,30 @@ function App() {
             </div>
           </section>
 
-          {/* 功能模块区域 */}
-          <section className="features-section">
-            <div className="container">
-              <div className="features-grid">
-                {/* 功能卡片1：云协作平台 */}
-                <div className="feature-card">
-                  <div className="feature-icon-wrapper">
-                    <span className="feature-icon">👥</span>
-                  </div>
-                  <h3 className="feature-title">云协作平台</h3>
-                  <p className="feature-description">团队实时协作·文档同步共享</p>
-                </div>
+        <nav className="nav">
+          <a href="#" className="nav-item active">
+            首页
+          </a>
+          <a href="#" className="nav-item">
+            产品
+          </a>
+          <a href="#" className="nav-item">
+            服务
+          </a>
+          <a href="#" className="nav-item">
+            关于我们
+          </a>
+          <a href="#" className="nav-item">
+            联系我们
+          </a>
+        </nav>
+      </header>
 
-                {/* 功能卡片2：数据可视化 */}
-                <div className="feature-card">
-                  <div className="feature-icon-wrapper">
-                    <span className="feature-icon">📊</span>
-                  </div>
-                  <h3 className="feature-title">数据可视化</h3>
-                  <p className="feature-description">多维度分析·直观报表展示</p>
-                </div>
-
-                {/* 功能卡片3：安全运维 */}
-                <div className="feature-card">
-                  <div className="feature-icon-wrapper">
-                    <span className="feature-icon">🛡️</span>
-                  </div>
-                  <h3 className="feature-title">安全运维</h3>
-                  <p className="feature-description">企业级加密·7 * 24小时监控</p>
-                </div>
-              </div>
-            </div>
-          </section>
-        </div>
-      </main>
-      <Footer />
+      {/* Hero Section */}
+      <section className="hero">
+        <h1 className="hero-title">YUZIBRIDGE SaaS 企业云服务</h1>
+        <p className="hero-subtitle">高效 · 安全 · 智能的企业软件解决方案</p>
+      </section>
     </div>
   );
 }

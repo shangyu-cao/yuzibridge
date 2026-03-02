@@ -1,0 +1,196 @@
+import { query } from "../db/pool.js";
+import { HttpError } from "../utils/http-error.js";
+
+export const getStoreLanguagesBySlug = async (storeSlug) => {
+  const storeResult = await query(
+    `
+      select id, slug, default_language_code
+      from stores
+      where slug = $1 and is_active = true
+      limit 1
+    `,
+    [storeSlug],
+  );
+
+  if (storeResult.rowCount === 0) {
+    throw new HttpError(404, "Store not found");
+  }
+
+  const store = storeResult.rows[0];
+
+  const languageResult = await query(
+    `
+      select
+        sl.language_code as code,
+        l.english_name as english_name,
+        l.native_name as native_name,
+        sl.is_default as is_default
+      from store_languages sl
+      join languages l on l.code = sl.language_code
+      where sl.store_id = $1 and sl.is_enabled = true
+      order by sl.is_default desc, sl.language_code asc
+    `,
+    [store.id],
+  );
+
+  return {
+    storeSlug: store.slug,
+    defaultLanguage: store.default_language_code,
+    languages: languageResult.rows.map((row) => ({
+      code: row.code,
+      name: row.native_name,
+      englishName: row.english_name,
+      isDefault: row.is_default,
+    })),
+  };
+};
+
+export const getPublicMenuBySlug = async ({ storeSlug, requestedLanguage }) => {
+  const storeResult = await query(
+    `
+      select
+        id,
+        slug,
+        brand_name,
+        logo_url,
+        default_language_code,
+        default_currency_code,
+        address_text,
+        contact_phone,
+        contact_email
+      from stores
+      where slug = $1 and is_active = true
+      limit 1
+    `,
+    [storeSlug],
+  );
+
+  if (storeResult.rowCount === 0) {
+    throw new HttpError(404, "Store not found");
+  }
+
+  const store = storeResult.rows[0];
+  const language = requestedLanguage || store.default_language_code;
+
+  const socialResult = await query(
+    `
+      select platform, url
+      from store_social_links
+      where store_id = $1
+      order by sort_order asc, created_at asc
+    `,
+    [store.id],
+  );
+
+  const categoriesResult = await query(
+    `
+      select
+        c.id,
+        c.sort_order,
+        coalesce(ct_req.name, ct_def.name, 'Untitled Category') as name
+      from menu_categories c
+      left join menu_category_translations ct_req
+        on ct_req.category_id = c.id and ct_req.language_code = $2
+      left join menu_category_translations ct_def
+        on ct_def.category_id = c.id and ct_def.language_code = $3
+      where c.store_id = $1 and c.is_active = true
+      order by c.sort_order asc, c.created_at asc
+    `,
+    [store.id, language, store.default_language_code],
+  );
+
+  const itemsResult = await query(
+    `
+      select
+        i.id,
+        i.category_id,
+        i.image_url,
+        i.price_minor,
+        i.currency_code,
+        i.sort_order,
+        coalesce(it_req.name, it_def.name, 'Untitled Item') as name,
+        coalesce(it_req.description, it_def.description, '') as description
+      from menu_items i
+      left join menu_item_translations it_req
+        on it_req.item_id = i.id and it_req.language_code = $2
+      left join menu_item_translations it_def
+        on it_def.item_id = i.id and it_def.language_code = $3
+      where i.store_id = $1 and i.is_active = true and i.is_available = true
+      order by i.sort_order asc, i.created_at asc
+    `,
+    [store.id, language, store.default_language_code],
+  );
+
+  const itemIds = itemsResult.rows.map((row) => row.id);
+  let allergenRows = [];
+  if (itemIds.length > 0) {
+    const allergenResult = await query(
+      `
+        select
+          mia.item_id,
+          coalesce(at_req.label, at_def.label, a.code) as label
+        from menu_item_allergens mia
+        join allergens a on a.id = mia.allergen_id
+        left join allergen_translations at_req
+          on at_req.allergen_id = a.id and at_req.language_code = $2
+        left join allergen_translations at_def
+          on at_def.allergen_id = a.id and at_def.language_code = $3
+        where mia.item_id = any($1::uuid[])
+        order by mia.item_id, label
+      `,
+      [itemIds, language, store.default_language_code],
+    );
+    allergenRows = allergenResult.rows;
+  }
+
+  const allergensByItem = new Map();
+  for (const row of allergenRows) {
+    if (!allergensByItem.has(row.item_id)) {
+      allergensByItem.set(row.item_id, []);
+    }
+    allergensByItem.get(row.item_id).push(row.label);
+  }
+
+  const categories = categoriesResult.rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    sortOrder: row.sort_order,
+    items: [],
+  }));
+
+  const categoryMap = new Map(categories.map((category) => [category.id, category]));
+
+  for (const row of itemsResult.rows) {
+    const category = categoryMap.get(row.category_id);
+    if (!category) {
+      continue;
+    }
+
+    category.items.push({
+      id: row.id,
+      name: row.name,
+      description: row.description,
+      imageUrl: row.image_url,
+      priceMinor: row.price_minor,
+      currency: row.currency_code || store.default_currency_code,
+      sortOrder: row.sort_order,
+      allergens: allergensByItem.get(row.id) ?? [],
+    });
+  }
+
+  return {
+    store: {
+      id: store.id,
+      slug: store.slug,
+      name: store.brand_name,
+      logoUrl: store.logo_url,
+      address: store.address_text,
+      phone: store.contact_phone,
+      email: store.contact_email,
+      socialLinks: socialResult.rows,
+    },
+    lang: language,
+    fallbackLanguage: store.default_language_code,
+    categories,
+  };
+};
