@@ -9,7 +9,8 @@
     "lint": "eslint .",
     "preview": "vite preview",
     "server:dev": "node --watch server/index.js",
-    "server:start": "node server/index.js"
+    "server:start": "node server/index.js",
+    "db:seed": "node server/scripts/seed.js"
   },
   "dependencies": {
     "bcryptjs": "^3.0.3",

@@ -22,15 +22,17 @@ Apply schema:
 psql "$DATABASE_URL" -f docs/menu-saas/database/schema.postgres.sql
 ```
 
-## 4) Create initial admin user
+## 4) Seed demo store + admin + menu data
 
-You can insert an admin user manually, then generate `password_hash` via bcrypt in your own script/tool.
+```bash
+npm run db:seed
+```
 
-Required tables:
+Default seeded values (override via `.env`):
 
-- `users`
-- `store_memberships`
-- `stores`
+- Store slug: `dunwuzhai`
+- Admin email: `admin+dunwuzhai@yuzibridge.com`
+- Admin password: `ChangeMe123!` (please change immediately in real usage)
 
 ## 5) Start API server
 
