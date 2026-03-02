@@ -1,22 +1,16 @@
-import React, { useState } from 'react';
+import React from "react";
 import "./App.css";
 import logo from "./assets/logo.png";
 
+function App() {
   return (
-    <div className="App">
-      <Header isMenuOpen={isMenuOpen} setIsMenuOpen={setIsMenuOpen} />
-      <main>
-        {/* 主内容区域 - 根据您的图片描述创建 */}
-        <div className="main-content">
-          {/* 英雄区域 */}
-          <section className="hero-section">
-            <div className="container">
-              <div className="hero-content">
-                <h1 className="main-title">YUZIBRIDGE SaaS 企业云服务</h1>
-                <p className="subtitle">高效·安全·智能的企业软件解决方案</p>
-              </div>
-            </div>
-          </section>
+    <div className="home">
+      {/* Header */}
+      <header className="header">
+        <div className="logo-container">
+          <img src={logo} alt="logo" className="logo-img" />
+          <span className="logo-text">YUZIBRIDGE</span>
+        </div>
 
         <nav className="nav">
           <a href="#" className="nav-item active">
