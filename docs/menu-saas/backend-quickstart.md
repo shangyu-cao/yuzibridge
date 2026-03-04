@@ -44,7 +44,24 @@ Default URL:
 
 - `http://localhost:4000`
 
-## 6) Core endpoints
+## 6) Open MenuPage in browser
+
+In another terminal, run frontend dev server:
+
+```bash
+npm run dev
+```
+
+Open:
+
+- `http://localhost:5173/menu-preview/dunwuzhai`
+
+Notes:
+
+- `/` still shows your company homepage.
+- `/menu-preview/:storeSlug` renders the menu page and pulls data from backend API.
+
+## 7) Core endpoints
 
 Public:
 

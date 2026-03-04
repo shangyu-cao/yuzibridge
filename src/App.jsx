@@ -1,8 +1,37 @@
 import React from "react";
 import "./App.css";
 import logo from "./assets/logo.png";
+import MenuPage from "./components/menu/MenuPage";
+
+const DEFAULT_MENU_SLUG = "dunwuzhai";
+
+const parseMenuSlugFromPath = (pathname) => {
+  const normalizedPath = pathname.replace(/\/+$/, "");
+  const prefixes = ["/menu-preview", "/menu"];
+
+  for (const prefix of prefixes) {
+    if (normalizedPath === prefix) {
+      return DEFAULT_MENU_SLUG;
+    }
+
+    if (normalizedPath.startsWith(`${prefix}/`)) {
+      const slug = normalizedPath.slice(prefix.length + 1).trim();
+      if (!slug) {
+        return DEFAULT_MENU_SLUG;
+      }
+      return decodeURIComponent(slug);
+    }
+  }
+
+  return null;
+};
 
 function App() {
+  const menuSlug = parseMenuSlugFromPath(window.location.pathname);
+  if (menuSlug) {
+    return <MenuPage storeSlug={menuSlug} />;
+  }
+
   return (
     <div className="home">
       {/* Header */}
