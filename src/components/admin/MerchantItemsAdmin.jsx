@@ -139,6 +139,7 @@ const MerchantItemsAdmin = () => {
   const [itemStatusFilter, setItemStatusFilter] = useState("all");
   const [priceSort, setPriceSort] = useState("none");
   const [draggingCategoryId, setDraggingCategoryId] = useState("");
+  const [dropHint, setDropHint] = useState({ categoryId: "", position: "before" });
   const [categorySortSaving, setCategorySortSaving] = useState(false);
 
   const [loading, setLoading] = useState(false);
@@ -149,6 +150,7 @@ const MerchantItemsAdmin = () => {
 
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
+  const [toast, setToast] = useState(null);
 
   const [editingItemId, setEditingItemId] = useState(null);
   const [itemForm, setItemForm] = useState(EMPTY_ITEM_FORM);
@@ -194,6 +196,17 @@ const MerchantItemsAdmin = () => {
 
     return rows;
   }, [activeCategoryFilter, itemStatusFilter, items, priceSort, searchKeyword]);
+
+  const showToast = useCallback((type, message) => {
+    if (!message) return;
+    setToast({ type, message, id: Date.now() });
+  }, []);
+
+  useEffect(() => {
+    if (!toast) return undefined;
+    const timer = window.setTimeout(() => setToast(null), 2200);
+    return () => window.clearTimeout(timer);
+  }, [toast]);
 
   const fetchWithAuth = useCallback(
     async (path, options = {}) => {
@@ -491,7 +504,8 @@ const MerchantItemsAdmin = () => {
     }
   };
 
-  const persistCategoryOrder = async (nextCategories) => {
+  const persistCategoryOrder = async (nextCategories, options = {}) => {
+    const fromDrag = Boolean(options.fromDrag);
     if (!selectedStoreId || !nextCategories.length) {
       return;
     }
@@ -509,38 +523,69 @@ const MerchantItemsAdmin = () => {
         });
       }
 
-      setSuccessMessage("分类顺序已保存");
+      const message = fromDrag ? "分类顺序已自动保存" : "分类顺序已保存";
+      setSuccessMessage(message);
+      showToast("success", message);
       await loadData();
     } catch (error) {
-      setErrorMessage(error.message || "保存分类顺序失败");
+      const message = error.message || "保存分类顺序失败";
+      setErrorMessage(message);
+      showToast("error", message);
     } finally {
       setCategorySortSaving(false);
     }
   };
 
+  const clearCategoryDragState = () => {
+    setDraggingCategoryId("");
+    setDropHint({ categoryId: "", position: "before" });
+  };
+
   const handleCategoryDragStart = (categoryId) => {
     setDraggingCategoryId(categoryId);
+    setDropHint({ categoryId: "", position: "before" });
+  };
+
+  const handleCategoryDragOver = (event, targetCategoryId) => {
+    event.preventDefault();
+    if (!draggingCategoryId || draggingCategoryId === targetCategoryId) return;
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const position = event.clientY < rect.top + rect.height / 2 ? "before" : "after";
+    setDropHint((current) => {
+      if (current.categoryId === targetCategoryId && current.position === position) return current;
+      return { categoryId: targetCategoryId, position };
+    });
   };
 
   const handleCategoryDrop = async (targetCategoryId) => {
+    const position = dropHint.categoryId === targetCategoryId ? dropHint.position : "before";
     if (!draggingCategoryId || draggingCategoryId === targetCategoryId) {
-      setDraggingCategoryId("");
+      clearCategoryDragState();
       return;
     }
 
     const sourceIndex = categories.findIndex((category) => category.id === draggingCategoryId);
     const targetIndex = categories.findIndex((category) => category.id === targetCategoryId);
     if (sourceIndex < 0 || targetIndex < 0) {
-      setDraggingCategoryId("");
+      clearCategoryDragState();
       return;
     }
 
     const reordered = [...categories];
     const [moved] = reordered.splice(sourceIndex, 1);
-    reordered.splice(targetIndex, 0, moved);
+    let insertIndex = targetIndex + (position === "after" ? 1 : 0);
+    if (sourceIndex < insertIndex) insertIndex -= 1;
+    if (insertIndex < 0) insertIndex = 0;
+    if (insertIndex > reordered.length) insertIndex = reordered.length;
+    if (sourceIndex === insertIndex) {
+      clearCategoryDragState();
+      return;
+    }
+    reordered.splice(insertIndex, 0, moved);
     setCategories(reordered);
-    setDraggingCategoryId("");
-    await persistCategoryOrder(reordered);
+    clearCategoryDragState();
+    await persistCategoryOrder(reordered, { fromDrag: true });
   };
 
   const handleToggleCategoryActive = async (category) => {
@@ -791,22 +836,27 @@ const MerchantItemsAdmin = () => {
                   </button>
                 </div>
               </div>
+              <p className="merchant-admin-drag-tip">
+                拖拽分类可自动保存顺序：放到条目上半区=插入前，下半区=插入后。
+              </p>
 
               {!categories.length ? (
                 <p className="merchant-admin-empty">暂无分类</p>
               ) : (
-                <ul className="merchant-admin-category-list">
+                <ul className={`merchant-admin-category-list ${draggingCategoryId ? "is-sorting" : ""}`}>
                   {categories.map((category, index) => (
                     <li
                       key={category.id}
                       className={`merchant-admin-category-item ${
                         draggingCategoryId === category.id ? "dragging" : ""
+                      } ${
+                        dropHint.categoryId === category.id ? `drop-${dropHint.position}` : ""
                       }`}
                       draggable
                       onDragStart={() => handleCategoryDragStart(category.id)}
-                      onDragOver={(event) => event.preventDefault()}
+                      onDragOver={(event) => handleCategoryDragOver(event, category.id)}
                       onDrop={() => handleCategoryDrop(category.id)}
-                      onDragEnd={() => setDraggingCategoryId("")}
+                      onDragEnd={clearCategoryDragState}
                     >
                       <div className="merchant-admin-category-grip" title="拖拽调整顺序">
                         ≡
@@ -1192,6 +1242,7 @@ const MerchantItemsAdmin = () => {
           </section>
         ) : null}
       </div>
+      {toast ? <div className={`merchant-admin-toast ${toast.type}`}>{toast.message}</div> : null}
     </div>
   );
 };
