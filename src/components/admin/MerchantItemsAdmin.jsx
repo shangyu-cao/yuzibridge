@@ -9,15 +9,15 @@ const MEMBERSHIPS_KEY = "merchant_admin_memberships";
 const STORE_KEY = "merchant_admin_store_id";
 
 const DEFAULT_ALLERGEN_OPTIONS = [
-  { code: "milk", label: "Milk" },
-  { code: "eggs", label: "Eggs" },
-  { code: "peanuts", label: "Peanuts" },
-  { code: "tree_nuts", label: "Tree Nuts" },
-  { code: "gluten", label: "Gluten" },
-  { code: "soy", label: "Soy" },
-  { code: "fish", label: "Fish" },
-  { code: "shellfish", label: "Shellfish" },
-  { code: "sesame", label: "Sesame" },
+  { code: "milk", label: "milk" },
+  { code: "eggs", label: "eggs" },
+  { code: "peanuts", label: "peanuts" },
+  { code: "tree_nuts", label: "tree nuts" },
+  { code: "gluten", label: "gluten" },
+  { code: "soy", label: "soy" },
+  { code: "fish", label: "fish" },
+  { code: "shellfish", label: "shellfish" },
+  { code: "sesame", label: "sesame" },
 ];
 
 const ORDER_STATUS_LABEL = {
@@ -43,7 +43,6 @@ const EMPTY_ITEM_FORM = {
 const EMPTY_CATEGORY_FORM = {
   name: "",
   description: "",
-  sortOrder: "0",
   isActive: true,
 };
 
@@ -95,7 +94,6 @@ const toItemPayload = (form) => {
 const toCategoryPayload = (form) => ({
   name: form.name.trim(),
   description: form.description.trim() || null,
-  sortOrder: Math.max(0, Number.parseInt(form.sortOrder || "0", 10) || 0),
   isActive: Boolean(form.isActive),
 });
 
@@ -115,7 +113,6 @@ const normalizeItemForm = (item) => ({
 const normalizeCategoryForm = (category) => ({
   name: category.name ?? "",
   description: category.description ?? "",
-  sortOrder: String(category.sortOrder ?? 0),
   isActive: Boolean(category.isActive),
 });
 
@@ -139,6 +136,10 @@ const MerchantItemsAdmin = () => {
 
   const [searchKeyword, setSearchKeyword] = useState("");
   const [activeCategoryFilter, setActiveCategoryFilter] = useState("all");
+  const [itemStatusFilter, setItemStatusFilter] = useState("all");
+  const [priceSort, setPriceSort] = useState("none");
+  const [draggingCategoryId, setDraggingCategoryId] = useState("");
+  const [categorySortSaving, setCategorySortSaving] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
@@ -158,12 +159,24 @@ const MerchantItemsAdmin = () => {
     () => new Map(categories.map((category) => [category.id, category.name])),
     [categories],
   );
+  const allergenLabelMap = useMemo(
+    () => new Map(allergenOptions.map((option) => [option.code, option.label])),
+    [allergenOptions],
+  );
 
   const filteredItems = useMemo(() => {
     const keyword = searchKeyword.trim().toLowerCase();
-    return items.filter((item) => {
+    const rows = items.filter((item) => {
       const passCategory = activeCategoryFilter === "all" || item.categoryId === activeCategoryFilter;
       if (!passCategory) return false;
+
+      const passStatus =
+        itemStatusFilter === "all" ||
+        (itemStatusFilter === "active" && item.isActive) ||
+        (itemStatusFilter === "inactive" && !item.isActive) ||
+        (itemStatusFilter === "available" && item.isAvailable) ||
+        (itemStatusFilter === "unavailable" && !item.isAvailable);
+      if (!passStatus) return false;
 
       if (!keyword) return true;
       const content = [item.name, item.description, ...(item.allergenCodes ?? [])]
@@ -172,7 +185,15 @@ const MerchantItemsAdmin = () => {
         .toLowerCase();
       return content.includes(keyword);
     });
-  }, [activeCategoryFilter, items, searchKeyword]);
+
+    if (priceSort === "asc") {
+      rows.sort((a, b) => (a.priceMinor ?? 0) - (b.priceMinor ?? 0));
+    } else if (priceSort === "desc") {
+      rows.sort((a, b) => (b.priceMinor ?? 0) - (a.priceMinor ?? 0));
+    }
+
+    return rows;
+  }, [activeCategoryFilter, itemStatusFilter, items, priceSort, searchKeyword]);
 
   const fetchWithAuth = useCallback(
     async (path, options = {}) => {
@@ -328,6 +349,8 @@ const MerchantItemsAdmin = () => {
     resetCategoryForm();
     setSearchKeyword("");
     setActiveCategoryFilter("all");
+    setItemStatusFilter("all");
+    setPriceSort("none");
   };
 
   const handleAllergenToggle = (allergenCode) => {
@@ -468,6 +491,73 @@ const MerchantItemsAdmin = () => {
     }
   };
 
+  const persistCategoryOrder = async (nextCategories) => {
+    if (!selectedStoreId || !nextCategories.length) {
+      return;
+    }
+
+    setCategorySortSaving(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+    try {
+      for (let index = 0; index < nextCategories.length; index += 1) {
+        const category = nextCategories[index];
+        const nextSortOrder = (index + 1) * 10;
+        await fetchWithAuth(`/api/admin/stores/${selectedStoreId}/categories/${category.id}`, {
+          method: "PUT",
+          body: JSON.stringify({ sortOrder: nextSortOrder }),
+        });
+      }
+
+      setSuccessMessage("分类顺序已保存");
+      await loadData();
+    } catch (error) {
+      setErrorMessage(error.message || "保存分类顺序失败");
+    } finally {
+      setCategorySortSaving(false);
+    }
+  };
+
+  const handleCategoryDragStart = (categoryId) => {
+    setDraggingCategoryId(categoryId);
+  };
+
+  const handleCategoryDrop = async (targetCategoryId) => {
+    if (!draggingCategoryId || draggingCategoryId === targetCategoryId) {
+      setDraggingCategoryId("");
+      return;
+    }
+
+    const sourceIndex = categories.findIndex((category) => category.id === draggingCategoryId);
+    const targetIndex = categories.findIndex((category) => category.id === targetCategoryId);
+    if (sourceIndex < 0 || targetIndex < 0) {
+      setDraggingCategoryId("");
+      return;
+    }
+
+    const reordered = [...categories];
+    const [moved] = reordered.splice(sourceIndex, 1);
+    reordered.splice(targetIndex, 0, moved);
+    setCategories(reordered);
+    setDraggingCategoryId("");
+    await persistCategoryOrder(reordered);
+  };
+
+  const handleToggleCategoryActive = async (category) => {
+    setErrorMessage("");
+    setSuccessMessage("");
+    try {
+      await fetchWithAuth(`/api/admin/stores/${selectedStoreId}/categories/${category.id}`, {
+        method: "PUT",
+        body: JSON.stringify({ isActive: !category.isActive }),
+      });
+      setSuccessMessage("分类状态已更新");
+      await loadData();
+    } catch (error) {
+      setErrorMessage(error.message || "更新分类状态失败");
+    }
+  };
+
   const handleSubmitCategory = async (event) => {
     event.preventDefault();
     if (!selectedStoreId) {
@@ -490,9 +580,13 @@ const MerchantItemsAdmin = () => {
         });
         setSuccessMessage("分类更新成功");
       } else {
+        const createPayload = {
+          ...payload,
+          sortOrder: (categories.length + 1) * 10,
+        };
         await fetchWithAuth(`/api/admin/stores/${selectedStoreId}/categories`, {
           method: "POST",
-          body: JSON.stringify(payload),
+          body: JSON.stringify(createPayload),
         });
         setSuccessMessage("分类创建成功");
       }
@@ -661,26 +755,18 @@ const MerchantItemsAdmin = () => {
                     }
                   />
                 </label>
-                <label>
-                  排序
-                  <input
-                    type="number"
-                    min="0"
-                    value={categoryForm.sortOrder}
-                    onChange={(event) =>
-                      setCategoryForm((current) => ({ ...current, sortOrder: event.target.value }))
-                    }
-                  />
-                </label>
-                <label className="merchant-admin-checkbox-row">
-                  <input
-                    type="checkbox"
-                    checked={categoryForm.isActive}
-                    onChange={(event) =>
-                      setCategoryForm((current) => ({ ...current, isActive: event.target.checked }))
-                    }
-                  />
+                <label className="merchant-admin-switch-row">
                   启用
+                  <span className="merchant-admin-switch">
+                    <input
+                      type="checkbox"
+                      checked={categoryForm.isActive}
+                      onChange={(event) =>
+                        setCategoryForm((current) => ({ ...current, isActive: event.target.checked }))
+                      }
+                    />
+                    <span />
+                  </span>
                 </label>
                 <div className="merchant-admin-form-actions">
                   <button type="submit" disabled={submitLoading}>
@@ -695,56 +781,62 @@ const MerchantItemsAdmin = () => {
 
             <section className="merchant-admin-card">
               <div className="merchant-admin-table-header">
-                <h2>分类列表</h2>
-                <button type="button" className="secondary" onClick={loadData} disabled={loading}>
-                  {loading ? "刷新中..." : "刷新"}
-                </button>
+                <h2>分类列表（拖拽排序）</h2>
+                <div className="merchant-admin-table-header-actions">
+                  <button type="button" className="secondary" onClick={loadData} disabled={loading}>
+                    {loading ? "刷新中..." : "刷新"}
+                  </button>
+                  <button type="button" className="secondary" onClick={() => persistCategoryOrder(categories)} disabled={categorySortSaving}>
+                    {categorySortSaving ? "保存中..." : "保存当前顺序"}
+                  </button>
+                </div>
               </div>
 
               {!categories.length ? (
                 <p className="merchant-admin-empty">暂无分类</p>
               ) : (
-                <div className="merchant-admin-table-wrap">
-                  <table className="merchant-admin-table">
-                    <thead>
-                      <tr>
-                        <th>名称</th>
-                        <th>描述</th>
-                        <th>排序</th>
-                        <th>状态</th>
-                        <th>操作</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {categories.map((category) => (
-                        <tr key={category.id}>
-                          <td>{category.name}</td>
-                          <td>{category.description || "-"}</td>
-                          <td>{category.sortOrder}</td>
-                          <td>{category.isActive ? "启用" : "停用"}</td>
-                          <td>
-                            <div className="merchant-admin-table-actions">
-                              <button
-                                type="button"
-                                className="secondary"
-                                onClick={() => handleEditCategory(category)}
-                              >
-                                编辑
-                              </button>
-                              <button
-                                type="button"
-                                className="danger"
-                                onClick={() => handleDeleteCategory(category)}
-                              >
-                                删除
-                              </button>
-                            </div>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <ul className="merchant-admin-category-list">
+                  {categories.map((category, index) => (
+                    <li
+                      key={category.id}
+                      className={`merchant-admin-category-item ${
+                        draggingCategoryId === category.id ? "dragging" : ""
+                      }`}
+                      draggable
+                      onDragStart={() => handleCategoryDragStart(category.id)}
+                      onDragOver={(event) => event.preventDefault()}
+                      onDrop={() => handleCategoryDrop(category.id)}
+                      onDragEnd={() => setDraggingCategoryId("")}
+                    >
+                      <div className="merchant-admin-category-grip" title="拖拽调整顺序">
+                        ≡
+                      </div>
+                      <div className="merchant-admin-category-body">
+                        <div className="merchant-admin-category-title-row">
+                          <strong>{category.name}</strong>
+                          <span className="merchant-admin-category-order">#{index + 1}</span>
+                        </div>
+                        <p>{category.description || "-"}</p>
+                      </div>
+                      <div className="merchant-admin-category-controls">
+                        <label className="merchant-admin-switch compact">
+                          <input
+                            type="checkbox"
+                            checked={Boolean(category.isActive)}
+                            onChange={() => handleToggleCategoryActive(category)}
+                          />
+                          <span />
+                        </label>
+                        <button type="button" className="secondary" onClick={() => handleEditCategory(category)}>
+                          编辑
+                        </button>
+                        <button type="button" className="danger" onClick={() => handleDeleteCategory(category)}>
+                          删除
+                        </button>
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               )}
             </section>
           </div>
@@ -839,6 +931,7 @@ const MerchantItemsAdmin = () => {
                   <label>
                     图片
                     <input
+                      className="merchant-admin-file-input"
                       type="file"
                       accept="image/png,image/jpeg,image/webp,image/gif"
                       disabled={uploadLoading}
@@ -849,18 +942,6 @@ const MerchantItemsAdmin = () => {
                     </small>
                   </label>
                 </div>
-
-                <label>
-                  图片 URL
-                  <input
-                    type="url"
-                    placeholder="https://..."
-                    value={itemForm.imageUrl}
-                    onChange={(event) =>
-                      setItemForm((current) => ({ ...current, imageUrl: event.target.value }))
-                    }
-                  />
-                </label>
 
                 {itemForm.imageUrl ? (
                   <div className="merchant-admin-image-preview">
@@ -881,7 +962,6 @@ const MerchantItemsAdmin = () => {
                             onChange={() => handleAllergenToggle(allergen.code)}
                           />
                           <span>{allergen.label}</span>
-                          <code>{allergen.code}</code>
                         </label>
                       );
                     })}
@@ -889,25 +969,31 @@ const MerchantItemsAdmin = () => {
                 </fieldset>
 
                 <div className="merchant-admin-checkbox-row">
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={itemForm.isActive}
-                      onChange={(event) =>
-                        setItemForm((current) => ({ ...current, isActive: event.target.checked }))
-                      }
-                    />
+                  <label className="merchant-admin-switch-row">
                     启用
+                    <span className="merchant-admin-switch">
+                      <input
+                        type="checkbox"
+                        checked={itemForm.isActive}
+                        onChange={(event) =>
+                          setItemForm((current) => ({ ...current, isActive: event.target.checked }))
+                        }
+                      />
+                      <span />
+                    </span>
                   </label>
-                  <label>
-                    <input
-                      type="checkbox"
-                      checked={itemForm.isAvailable}
-                      onChange={(event) =>
-                        setItemForm((current) => ({ ...current, isAvailable: event.target.checked }))
-                      }
-                    />
+                  <label className="merchant-admin-switch-row">
                     可售
+                    <span className="merchant-admin-switch">
+                      <input
+                        type="checkbox"
+                        checked={itemForm.isAvailable}
+                        onChange={(event) =>
+                          setItemForm((current) => ({ ...current, isAvailable: event.target.checked }))
+                        }
+                      />
+                      <span />
+                    </span>
                   </label>
                 </div>
 
@@ -933,33 +1019,42 @@ const MerchantItemsAdmin = () => {
                     value={searchKeyword}
                     onChange={(event) => setSearchKeyword(event.target.value)}
                   />
+                  <select
+                    className="merchant-admin-filter-select"
+                    value={activeCategoryFilter}
+                    onChange={(event) => setActiveCategoryFilter(event.target.value)}
+                  >
+                    <option value="all">全部分类</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
+                    ))}
+                  </select>
+                  <select
+                    className="merchant-admin-filter-select"
+                    value={itemStatusFilter}
+                    onChange={(event) => setItemStatusFilter(event.target.value)}
+                  >
+                    <option value="all">全部状态</option>
+                    <option value="active">启用</option>
+                    <option value="inactive">停用</option>
+                    <option value="available">可售</option>
+                    <option value="unavailable">下架</option>
+                  </select>
+                  <select
+                    className="merchant-admin-filter-select"
+                    value={priceSort}
+                    onChange={(event) => setPriceSort(event.target.value)}
+                  >
+                    <option value="none">价格排序</option>
+                    <option value="asc">价格从低到高</option>
+                    <option value="desc">价格从高到低</option>
+                  </select>
                   <button type="button" className="secondary" onClick={loadData} disabled={loading}>
                     {loading ? "刷新中..." : "刷新"}
                   </button>
                 </div>
-              </div>
-
-              <div className="merchant-admin-category-filters">
-                <button
-                  type="button"
-                  className={activeCategoryFilter === "all" ? "secondary active-filter" : "secondary"}
-                  onClick={() => setActiveCategoryFilter("all")}
-                >
-                  全部 ({items.length})
-                </button>
-                {categories.map((category) => {
-                  const count = items.filter((item) => item.categoryId === category.id).length;
-                  return (
-                    <button
-                      key={category.id}
-                      type="button"
-                      className={activeCategoryFilter === category.id ? "secondary active-filter" : "secondary"}
-                      onClick={() => setActiveCategoryFilter(category.id)}
-                    >
-                      {category.name} ({count})
-                    </button>
-                  );
-                })}
               </div>
 
               {!filteredItems.length ? (
@@ -985,7 +1080,7 @@ const MerchantItemsAdmin = () => {
                             {item.allergenCodes?.length ? (
                               <div className="merchant-admin-item-tags">
                                 {item.allergenCodes.map((code) => (
-                                  <span key={code}>{code}</span>
+                                  <span key={code}>{allergenLabelMap.get(code) ?? code}</span>
                                 ))}
                               </div>
                             ) : null}

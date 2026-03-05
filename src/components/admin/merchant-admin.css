@@ -110,7 +110,7 @@
 
 .merchant-admin-row {
   display: grid;
-  grid-template-columns: 1fr 1fr;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   gap: 10px;
 }
 
@@ -161,22 +161,85 @@
   padding: 6px 8px;
 }
 
-.merchant-admin-allergen-option code {
-  margin-left: auto;
-  color: #6b7280;
-  font-size: 0.72rem;
-}
-
 .merchant-admin-checkbox-row {
   display: flex;
-  gap: 16px;
+  gap: 18px;
 }
 
 .merchant-admin-checkbox-row label {
   display: flex;
   flex-direction: row;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
+}
+
+.merchant-admin-switch-row {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 8px 10px;
+  min-width: 120px;
+}
+
+.merchant-admin-switch {
+  position: relative;
+  display: inline-flex;
+}
+
+.merchant-admin-switch input {
+  opacity: 0;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.merchant-admin-switch > span {
+  width: 40px;
+  height: 22px;
+  border-radius: 999px;
+  background: #d1d5db;
+  position: relative;
+  transition: background-color 0.2s ease;
+}
+
+.merchant-admin-switch > span::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.merchant-admin-switch input:checked + span {
+  background: #10b981;
+}
+
+.merchant-admin-switch input:checked + span::after {
+  transform: translateX(18px);
+}
+
+.merchant-admin-switch.compact > span {
+  width: 34px;
+  height: 20px;
+}
+
+.merchant-admin-switch.compact > span::after {
+  width: 14px;
+  height: 14px;
+}
+
+.merchant-admin-switch.compact input:checked + span::after {
+  transform: translateX(14px);
 }
 
 .merchant-admin-form-actions {
@@ -196,11 +259,24 @@
   display: flex;
   gap: 8px;
   align-items: center;
+  flex-wrap: wrap;
 }
 
 .merchant-admin-search-input {
-  width: 260px;
+  width: 320px;
   max-width: 46vw;
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  padding: 9px 14px;
+  background: #f8fafc;
+}
+
+.merchant-admin-filter-select {
+  min-width: 140px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+  padding: 8px 10px;
 }
 
 .merchant-admin-category-filters {
@@ -208,6 +284,73 @@
   flex-wrap: wrap;
   gap: 8px;
   margin-bottom: 10px;
+}
+
+.merchant-admin-category-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.merchant-admin-category-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px;
+}
+
+.merchant-admin-category-item.dragging {
+  opacity: 0.6;
+}
+
+.merchant-admin-category-grip {
+  width: 24px;
+  text-align: center;
+  color: #6b7280;
+  cursor: grab;
+  user-select: none;
+  font-size: 1.1rem;
+}
+
+.merchant-admin-category-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.merchant-admin-category-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.merchant-admin-category-title-row strong {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.merchant-admin-category-body p {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 0.82rem;
+}
+
+.merchant-admin-category-order {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.merchant-admin-category-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
 }
 
 .merchant-admin-page button.active-filter {
@@ -316,6 +459,11 @@
   background: #f9fafb;
 }
 
+.merchant-admin-file-input {
+  width: 100%;
+  max-width: 100%;
+}
+
 .merchant-admin-table-actions {
   display: flex;
   gap: 6px;
@@ -383,5 +531,14 @@
 
   .merchant-admin-allergen-grid {
     grid-template-columns: 1fr;
+  }
+
+  .merchant-admin-category-item {
+    flex-wrap: wrap;
+  }
+
+  .merchant-admin-category-controls {
+    width: 100%;
+    justify-content: flex-end;
   }
 }
