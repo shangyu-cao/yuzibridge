@@ -107,6 +107,59 @@
   gap: 10px;
 }
 
+.merchant-admin-help {
+  color: #6b7280;
+  font-size: 0.76rem;
+}
+
+.merchant-admin-image-preview {
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.merchant-admin-image-preview img {
+  max-width: 100%;
+  max-height: 180px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.merchant-admin-allergen-fieldset {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 8px 10px 10px;
+}
+
+.merchant-admin-allergen-fieldset legend {
+  font-size: 0.82rem;
+  color: #374151;
+  padding: 0 4px;
+}
+
+.merchant-admin-allergen-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.merchant-admin-allergen-option {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem !important;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
+.merchant-admin-allergen-option code {
+  margin-left: auto;
+  color: #6b7280;
+  font-size: 0.72rem;
+}
+
 .merchant-admin-checkbox-row {
   display: flex;
   gap: 16px;
@@ -130,6 +183,30 @@
   align-items: center;
   justify-content: space-between;
   margin-bottom: 10px;
+}
+
+.merchant-admin-table-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.merchant-admin-search-input {
+  width: 260px;
+  max-width: 46vw;
+}
+
+.merchant-admin-category-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.merchant-admin-page button.active-filter {
+  background: #111827;
+  color: #fff;
+  border-color: #111827;
 }
 
 .merchant-admin-table-wrap {
@@ -158,6 +235,22 @@
   margin-top: 3px;
   color: #6b7280;
   font-size: 0.8rem;
+}
+
+.merchant-admin-item-tags {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.merchant-admin-item-tags span {
+  font-size: 0.72rem;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  padding: 2px 6px;
+  color: #374151;
+  background: #f9fafb;
 }
 
 .merchant-admin-table-actions {
@@ -211,6 +304,21 @@
 
 @media (max-width: 1080px) {
   .merchant-admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .merchant-admin-search-input {
+    width: 100%;
+    max-width: none;
+  }
+
+  .merchant-admin-table-header-actions {
+    width: 100%;
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .merchant-admin-allergen-grid {
     grid-template-columns: 1fr;
   }
 }

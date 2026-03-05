@@ -31,6 +31,22 @@ const SOCIAL_LINKS = [
 
 const ALLERGENS = [
   {
+    code: "milk",
+    labels: { "zh-CN": "奶类", "en-US": "Milk", "ja-JP": "乳" },
+  },
+  {
+    code: "eggs",
+    labels: { "zh-CN": "蛋类", "en-US": "Eggs", "ja-JP": "卵" },
+  },
+  {
+    code: "peanuts",
+    labels: { "zh-CN": "花生", "en-US": "Peanuts", "ja-JP": "ピーナッツ" },
+  },
+  {
+    code: "tree_nuts",
+    labels: { "zh-CN": "树坚果", "en-US": "Tree Nuts", "ja-JP": "木の実" },
+  },
+  {
     code: "gluten",
     labels: { "zh-CN": "麸质", "en-US": "Gluten", "ja-JP": "小麦" },
   },
@@ -39,8 +55,8 @@ const ALLERGENS = [
     labels: { "zh-CN": "大豆", "en-US": "Soy", "ja-JP": "大豆" },
   },
   {
-    code: "egg",
-    labels: { "zh-CN": "蛋", "en-US": "Egg", "ja-JP": "卵" },
+    code: "fish",
+    labels: { "zh-CN": "鱼类", "en-US": "Fish", "ja-JP": "魚" },
   },
   {
     code: "shellfish",
@@ -80,7 +96,7 @@ const MENU_SEED = [
         currencyCode: "CNY",
         sortOrder: 20,
         imageUrl: null,
-        allergenCodes: ["egg", "soy"],
+        allergenCodes: ["eggs", "soy"],
         translations: {
           "zh-CN": { name: "黑松露炒饭", description: "鸡蛋炒饭搭配黑松露酱和时蔬。" },
           "en-US": { name: "Truffle Fried Rice", description: "Egg fried rice with truffle paste and vegetables." },

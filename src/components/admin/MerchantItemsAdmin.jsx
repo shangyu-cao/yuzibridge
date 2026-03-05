@@ -8,6 +8,18 @@ const USER_KEY = "merchant_admin_user";
 const MEMBERSHIPS_KEY = "merchant_admin_memberships";
 const STORE_KEY = "merchant_admin_store_id";
 
+const DEFAULT_ALLERGEN_OPTIONS = [
+  { code: "milk", label: "Milk" },
+  { code: "eggs", label: "Eggs" },
+  { code: "peanuts", label: "Peanuts" },
+  { code: "tree_nuts", label: "Tree Nuts" },
+  { code: "gluten", label: "Gluten" },
+  { code: "soy", label: "Soy" },
+  { code: "fish", label: "Fish" },
+  { code: "shellfish", label: "Shellfish" },
+  { code: "sesame", label: "Sesame" },
+];
+
 const emptyForm = {
   categoryId: "",
   name: "",
@@ -18,7 +30,7 @@ const emptyForm = {
   sortOrder: "0",
   isActive: true,
   isAvailable: true,
-  allergenCodesText: "",
+  allergenCodes: [],
 };
 
 const parseStoredJson = (value, fallback) => {
@@ -49,17 +61,16 @@ const normalizeItemForm = (item) => {
     sortOrder: String(item.sortOrder ?? 0),
     isActive: Boolean(item.isActive),
     isAvailable: Boolean(item.isAvailable),
-    allergenCodesText: Array.isArray(item.allergenCodes) ? item.allergenCodes.join(", ") : "",
+    allergenCodes: Array.isArray(item.allergenCodes) ? item.allergenCodes : [],
   };
 };
 
 const toItemPayload = (form) => {
   const priceFloat = Number.parseFloat(form.price);
   const priceMinor = Number.isFinite(priceFloat) ? Math.round(priceFloat * 100) : 0;
-  const allergenCodes = form.allergenCodesText
-    .split(/[，,]/)
-    .map((x) => x.trim().toLowerCase())
-    .filter(Boolean);
+  const allergenCodes = Array.isArray(form.allergenCodes)
+    ? form.allergenCodes.map((x) => x.trim().toLowerCase()).filter(Boolean)
+    : [];
 
   return {
     categoryId: form.categoryId,
@@ -88,9 +99,13 @@ const MerchantItemsAdmin = () => {
 
   const [categories, setCategories] = useState([]);
   const [items, setItems] = useState([]);
+  const [allergenOptions, setAllergenOptions] = useState(DEFAULT_ALLERGEN_OPTIONS);
+  const [searchKeyword, setSearchKeyword] = useState("");
+  const [activeCategoryFilter, setActiveCategoryFilter] = useState("all");
   const [loading, setLoading] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
+  const [uploadLoading, setUploadLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
@@ -101,6 +116,27 @@ const MerchantItemsAdmin = () => {
     () => new Map(categories.map((category) => [category.id, category.name])),
     [categories],
   );
+
+  const filteredItems = useMemo(() => {
+    const keyword = searchKeyword.trim().toLowerCase();
+
+    return items.filter((item) => {
+      const passCategory = activeCategoryFilter === "all" || item.categoryId === activeCategoryFilter;
+      if (!passCategory) {
+        return false;
+      }
+
+      if (!keyword) {
+        return true;
+      }
+
+      const targetText = [item.name, item.description, ...(item.allergenCodes ?? [])]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+      return targetText.includes(keyword);
+    });
+  }, [activeCategoryFilter, items, searchKeyword]);
 
   const fetchWithAuth = useCallback(async (path, options = {}) => {
     const response = await fetch(`${API_BASE_URL}${path}`, {
@@ -148,17 +184,27 @@ const MerchantItemsAdmin = () => {
     setLoading(true);
     setErrorMessage("");
     try {
-      const [categoryResp, itemResp] = await Promise.all([
+      const [categoryResp, itemResp, allergenResp] = await Promise.all([
         fetchWithAuth(`/api/admin/stores/${selectedStoreId}/categories`),
         fetchWithAuth(`/api/admin/stores/${selectedStoreId}/items`),
+        fetchWithAuth(`/api/admin/stores/${selectedStoreId}/allergens`),
       ]);
 
       setCategories(categoryResp?.categories ?? []);
       setItems(itemResp?.items ?? []);
+      setAllergenOptions(DEFAULT_ALLERGEN_OPTIONS);
       setItemForm((current) => ({
         ...current,
         categoryId: current.categoryId || categoryResp?.categories?.[0]?.id || "",
       }));
+
+      const backendAllergenCodes = new Set((allergenResp?.allergens ?? []).map((allergen) => allergen.code));
+      const missingCodes = DEFAULT_ALLERGEN_OPTIONS.map((item) => item.code).filter(
+        (code) => backendAllergenCodes.size > 0 && !backendAllergenCodes.has(code),
+      );
+      if (missingCodes.length > 0) {
+        setErrorMessage(`数据库缺少过敏源代码: ${missingCodes.join(", ")}。请先运行 npm run db:seed`);
+      }
     } catch (error) {
       setErrorMessage(error.message || "加载数据失败");
     } finally {
@@ -172,6 +218,17 @@ const MerchantItemsAdmin = () => {
     }
     loadData();
   }, [loadData, token]);
+
+  useEffect(() => {
+    if (activeCategoryFilter === "all") {
+      return;
+    }
+
+    const exists = categories.some((category) => category.id === activeCategoryFilter);
+    if (!exists) {
+      setActiveCategoryFilter("all");
+    }
+  }, [activeCategoryFilter, categories]);
 
   const handleLogin = async (event) => {
     event.preventDefault();
@@ -233,6 +290,66 @@ const MerchantItemsAdmin = () => {
     setSelectedStoreId(storeId);
     localStorage.setItem(STORE_KEY, storeId);
     setEditingItemId(null);
+    setSearchKeyword("");
+    setActiveCategoryFilter("all");
+  };
+
+  const handleAllergenToggle = (allergenCode) => {
+    setItemForm((current) => {
+      const currentSet = new Set(current.allergenCodes ?? []);
+      if (currentSet.has(allergenCode)) {
+        currentSet.delete(allergenCode);
+      } else {
+        currentSet.add(allergenCode);
+      }
+
+      return {
+        ...current,
+        allergenCodes: [...currentSet],
+      };
+    });
+  };
+
+  const handleImageUpload = async (file) => {
+    if (!file) {
+      return;
+    }
+    if (!selectedStoreId) {
+      setErrorMessage("请先选择店铺");
+      return;
+    }
+
+    setUploadLoading(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+    try {
+      const formData = new FormData();
+      formData.append("file", file);
+
+      const response = await fetch(`${API_BASE_URL}/api/admin/stores/${selectedStoreId}/uploads/image`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const payload = await response.json().catch(() => ({}));
+        throw new Error(payload?.message || "上传图片失败");
+      }
+
+      const payload = await response.json();
+      setItemForm((current) => ({
+        ...current,
+        imageUrl: payload.imageUrl ?? "",
+      }));
+      setSuccessMessage("图片上传成功");
+    } catch (error) {
+      setErrorMessage(error.message || "上传图片失败");
+    } finally {
+      setUploadLoading(false);
+    }
   };
 
   const handleEdit = (item) => {
@@ -466,28 +583,56 @@ const MerchantItemsAdmin = () => {
                 </label>
 
                 <label>
-                  图片 URL
+                  图片
                   <input
-                    type="url"
-                    placeholder="https://..."
-                    value={itemForm.imageUrl}
-                    onChange={(event) =>
-                      setItemForm((current) => ({ ...current, imageUrl: event.target.value }))
-                    }
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    disabled={uploadLoading}
+                    onChange={(event) => handleImageUpload(event.target.files?.[0])}
                   />
+                  <small className="merchant-admin-help">
+                    {uploadLoading ? "上传中..." : "支持 jpeg/png/webp/gif，最大 5MB"}
+                  </small>
                 </label>
               </div>
 
               <label>
-                过敏源代码（逗号分隔，如 gluten,soy）
+                图片 URL
                 <input
-                  type="text"
-                  value={itemForm.allergenCodesText}
+                  type="url"
+                  placeholder="https://..."
+                  value={itemForm.imageUrl}
                   onChange={(event) =>
-                    setItemForm((current) => ({ ...current, allergenCodesText: event.target.value }))
+                    setItemForm((current) => ({ ...current, imageUrl: event.target.value }))
                   }
                 />
               </label>
+
+              {itemForm.imageUrl ? (
+                <div className="merchant-admin-image-preview">
+                  <img src={itemForm.imageUrl} alt="preview" />
+                </div>
+              ) : null}
+
+              <fieldset className="merchant-admin-allergen-fieldset">
+                <legend>过敏源</legend>
+                <div className="merchant-admin-allergen-grid">
+                  {allergenOptions.map((allergen) => {
+                    const checked = (itemForm.allergenCodes ?? []).includes(allergen.code);
+                    return (
+                      <label key={allergen.code} className="merchant-admin-allergen-option">
+                        <input
+                          type="checkbox"
+                          checked={checked}
+                          onChange={() => handleAllergenToggle(allergen.code)}
+                        />
+                        <span>{allergen.label}</span>
+                        <code>{allergen.code}</code>
+                      </label>
+                    );
+                  })}
+                </div>
+              </fieldset>
 
               <div className="merchant-admin-checkbox-row">
                 <label>
@@ -527,9 +672,43 @@ const MerchantItemsAdmin = () => {
           <section className="merchant-admin-card">
             <div className="merchant-admin-table-header">
               <h2>菜品列表</h2>
-              <button type="button" className="secondary" onClick={loadData} disabled={loading}>
-                {loading ? "刷新中..." : "刷新"}
+              <div className="merchant-admin-table-header-actions">
+                <input
+                  className="merchant-admin-search-input"
+                  type="search"
+                  placeholder="搜索菜品名称/描述/过敏源"
+                  value={searchKeyword}
+                  onChange={(event) => setSearchKeyword(event.target.value)}
+                />
+                <button type="button" className="secondary" onClick={loadData} disabled={loading}>
+                  {loading ? "刷新中..." : "刷新"}
+                </button>
+              </div>
+            </div>
+
+            <div className="merchant-admin-category-filters">
+              <button
+                type="button"
+                className={`secondary ${activeCategoryFilter === "all" ? "active-filter" : ""}`}
+                onClick={() => setActiveCategoryFilter("all")}
+              >
+                全部 ({items.length})
               </button>
+              {categories.map((category) => {
+                const count = items.filter((item) => item.categoryId === category.id).length;
+                return (
+                  <button
+                    key={category.id}
+                    type="button"
+                    className={`secondary ${
+                      activeCategoryFilter === category.id ? "active-filter" : ""
+                    }`}
+                    onClick={() => setActiveCategoryFilter(category.id)}
+                  >
+                    {category.name} ({count})
+                  </button>
+                );
+              })}
             </div>
 
             {!categories.length ? (
@@ -538,7 +717,7 @@ const MerchantItemsAdmin = () => {
               </p>
             ) : null}
 
-            {!items.length ? (
+            {!filteredItems.length ? (
               <p className="merchant-admin-empty">暂无菜品</p>
             ) : (
               <div className="merchant-admin-table-wrap">
@@ -553,11 +732,18 @@ const MerchantItemsAdmin = () => {
                     </tr>
                   </thead>
                   <tbody>
-                    {items.map((item) => (
+                    {filteredItems.map((item) => (
                       <tr key={item.id}>
                         <td>
                           <div className="merchant-admin-item-name">{item.name}</div>
                           <div className="merchant-admin-item-desc">{item.description}</div>
+                          {item.allergenCodes?.length ? (
+                            <div className="merchant-admin-item-tags">
+                              {item.allergenCodes.map((code) => (
+                                <span key={code}>{code}</span>
+                              ))}
+                            </div>
+                          ) : null}
                         </td>
                         <td>{categoryNameMap.get(item.categoryId) ?? item.categoryId.slice(0, 8)}</td>
                         <td>{formatMoneyMinor(item.priceMinor, item.currencyCode)}</td>

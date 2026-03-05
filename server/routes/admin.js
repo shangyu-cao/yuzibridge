@@ -1,4 +1,8 @@
 import express from "express";
+import fs from "node:fs";
+import path from "node:path";
+import { randomUUID } from "node:crypto";
+import multer from "multer";
 import { z } from "zod";
 import { query, withTransaction } from "../db/pool.js";
 import { authenticateAdmin, requireStoreRole } from "../middleware/auth.js";
@@ -8,6 +12,34 @@ import { ensureCategoryBelongsStore, getActiveStoreForAdmin } from "../services/
 
 const router = express.Router();
 router.use(authenticateAdmin);
+
+const uploadsDirectory = path.resolve(process.cwd(), "server", "uploads");
+if (!fs.existsSync(uploadsDirectory)) {
+  fs.mkdirSync(uploadsDirectory, { recursive: true });
+}
+
+const allowedImageMimeTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+
+const imageUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, callback) => callback(null, uploadsDirectory),
+    filename: (_req, file, callback) => {
+      const extension = path.extname(file.originalname || "").toLowerCase();
+      const safeExtension = extension && extension.length <= 10 ? extension : ".jpg";
+      callback(null, `${Date.now()}-${randomUUID()}${safeExtension}`);
+    },
+  }),
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  },
+  fileFilter: (_req, file, callback) => {
+    if (!allowedImageMimeTypes.has(file.mimetype)) {
+      callback(new HttpError(400, "Unsupported image type. Use jpeg/png/webp/gif."));
+      return;
+    }
+    callback(null, true);
+  },
+});
 
 const readOnlyRoles = ["owner", "manager", "editor", "viewer"];
 const editRoles = ["owner", "manager", "editor"];
@@ -30,6 +62,18 @@ const itemParamsSchema = z.object({
 const languageQuerySchema = z.object({
   lang: z.string().min(2).max(10).optional(),
 });
+
+const orderedAllergenCodes = [
+  "milk",
+  "eggs",
+  "peanuts",
+  "tree_nuts",
+  "gluten",
+  "soy",
+  "fish",
+  "shellfish",
+  "sesame",
+];
 
 const createCategorySchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -203,6 +247,86 @@ const loadAdminItem = async ({ dbClient, storeId, itemId, languageCode, defaultL
     languageCode,
   };
 };
+
+router.get(
+  "/stores/:storeId/allergens",
+  requireStoreRole(readOnlyRoles),
+  asyncHandler(async (req, res) => {
+    const { storeId } = storeParamsSchema.parse(req.params);
+    const { lang } = languageQuerySchema.parse(req.query);
+
+    const store = await getActiveStoreForAdmin({ query }, storeId);
+    const languageCode = lang ?? store.default_language_code;
+
+    const allergenResult = await query(
+      `
+        select
+          a.code,
+          coalesce(at_req.label, at_def.label, a.code) as label
+        from allergens a
+        left join allergen_translations at_req
+          on at_req.allergen_id = a.id and at_req.language_code = $1
+        left join allergen_translations at_def
+          on at_def.allergen_id = a.id and at_def.language_code = $2
+        order by
+          case a.code
+            when 'milk' then 1
+            when 'eggs' then 2
+            when 'peanuts' then 3
+            when 'tree_nuts' then 4
+            when 'gluten' then 5
+            when 'soy' then 6
+            when 'fish' then 7
+            when 'shellfish' then 8
+            when 'sesame' then 9
+            else 999
+          end,
+          a.code
+      `,
+      [languageCode, store.default_language_code],
+    );
+
+    const rowsByCode = new Map(allergenResult.rows.map((row) => [row.code, row]));
+    const mergedRows = [
+      ...orderedAllergenCodes.map((code) => rowsByCode.get(code)).filter(Boolean),
+      ...allergenResult.rows.filter((row) => !orderedAllergenCodes.includes(row.code)),
+    ];
+
+    res.json({
+      languageCode,
+      allergens: mergedRows.map((row) => ({
+        code: row.code,
+        label: row.label,
+      })),
+    });
+  }),
+);
+
+router.post(
+  "/stores/:storeId/uploads/image",
+  requireStoreRole(editRoles),
+  imageUpload.single("file"),
+  asyncHandler(async (req, res) => {
+    const { storeId } = storeParamsSchema.parse(req.params);
+    await getActiveStoreForAdmin({ query }, storeId);
+
+    if (!req.file) {
+      throw new HttpError(400, "Image file is required.");
+    }
+
+    const imagePath = `/uploads/${req.file.filename}`;
+    const host = req.get("host");
+    const imageUrl = `${req.protocol}://${host}${imagePath}`;
+
+    res.status(201).json({
+      imageUrl,
+      imagePath,
+      fileName: req.file.filename,
+      mimeType: req.file.mimetype,
+      size: req.file.size,
+    });
+  }),
+);
 
 router.get(
   "/stores/:storeId/categories",
