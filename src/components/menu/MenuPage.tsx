@@ -16,6 +16,24 @@ type PublicLanguageResponse = {
   }>;
 };
 
+type PublicMenuItem = {
+  id: string;
+  name: string;
+  description: string;
+  imageUrl?: string | null;
+  priceMinor: number;
+  currency: string;
+  sortOrder: number;
+  allergens: string[];
+};
+
+type PublicMenuCategory = {
+  id: string;
+  name: string;
+  sortOrder: number;
+  items: PublicMenuItem[];
+};
+
 type PublicMenuResponse = {
   store: {
     id: string;
@@ -29,21 +47,7 @@ type PublicMenuResponse = {
   };
   lang: string;
   fallbackLanguage: string;
-  categories: Array<{
-    id: string;
-    name: string;
-    sortOrder: number;
-    items: Array<{
-      id: string;
-      name: string;
-      description: string;
-      imageUrl?: string | null;
-      priceMinor: number;
-      currency: string;
-      sortOrder: number;
-      allergens: string[];
-    }>;
-  }>;
+  categories: PublicMenuCategory[];
 };
 
 type MenuPageProps = {
@@ -57,6 +61,11 @@ type UiCopy = {
   errorText: string;
   fallbackText: string;
   retryText: string;
+  addToOrderText: string;
+  orderLabel: string;
+  orderItemsLabel: string;
+  orderEmptyText: string;
+  orderConfirmText: string;
 };
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000").replace(/\/$/, "");
@@ -75,6 +84,11 @@ const UI_COPY: Record<string, UiCopy> = {
     errorText: "菜单数据加载失败",
     fallbackText: "当前显示演示数据，请检查后端服务和数据库连接。",
     retryText: "重试",
+    addToOrderText: "加入购物篮",
+    orderLabel: "订单",
+    orderItemsLabel: "份",
+    orderEmptyText: "购物篮为空",
+    orderConfirmText: "确定",
   },
   "en-US": {
     categoryTitle: "Categories",
@@ -83,6 +97,11 @@ const UI_COPY: Record<string, UiCopy> = {
     errorText: "Failed to load menu data",
     fallbackText: "Showing demo data. Please check backend service and database connection.",
     retryText: "Retry",
+    addToOrderText: "Add to basket",
+    orderLabel: "Order",
+    orderItemsLabel: "items",
+    orderEmptyText: "Your basket is empty",
+    orderConfirmText: "Confirm",
   },
   "ja-JP": {
     categoryTitle: "カテゴリ",
@@ -91,6 +110,11 @@ const UI_COPY: Record<string, UiCopy> = {
     errorText: "メニューデータの読み込みに失敗しました",
     fallbackText: "現在はデモデータを表示しています。バックエンドとDB接続を確認してください。",
     retryText: "再試行",
+    addToOrderText: "カートに追加",
+    orderLabel: "注文",
+    orderItemsLabel: "点",
+    orderEmptyText: "カートは空です",
+    orderConfirmText: "確定",
   },
 };
 
@@ -203,11 +227,21 @@ const toSocialLinks = (links: Array<{ platform: string; url: string }>): SocialL
   }));
 };
 
+const formatMoneyMinor = (priceMinor: number, currency: string, locale: string) => {
+  return new Intl.NumberFormat(locale, {
+    style: "currency",
+    currency,
+    minimumFractionDigits: 2,
+  }).format(priceMinor / 100);
+};
+
 const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
   const [selectedLanguage, setSelectedLanguage] = useState<string>("zh-CN");
   const [languages, setLanguages] = useState<LanguageOption[]>(FALLBACK_LANGUAGES);
   const [menuPayload, setMenuPayload] = useState<PublicMenuResponse | null>(null);
   const [activeCategoryId, setActiveCategoryId] = useState<string>("");
+  const [basketQuantities, setBasketQuantities] = useState<Record<string, number>>({});
+  const [isOrderExpanded, setIsOrderExpanded] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [usingFallback, setUsingFallback] = useState<boolean>(false);
@@ -246,6 +280,11 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
     return () => {
       ignore = true;
     };
+  }, [storeSlug]);
+
+  useEffect(() => {
+    setBasketQuantities({});
+    setIsOrderExpanded(false);
   }, [storeSlug]);
 
   useEffect(() => {
@@ -328,6 +367,92 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
     );
   }, [activeCategoryId, menuPayload]);
 
+  const allMenuItems = useMemo(
+    () => (menuPayload?.categories ?? []).flatMap((category) => category.items),
+    [menuPayload],
+  );
+
+  const menuItemMap = useMemo(() => {
+    return new Map(allMenuItems.map((item) => [item.id, item]));
+  }, [allMenuItems]);
+
+  useEffect(() => {
+    setBasketQuantities((current) => {
+      const nextEntries = Object.entries(current).filter(
+        ([itemId, quantity]) => quantity > 0 && menuItemMap.has(itemId),
+      );
+      const hasChanges = nextEntries.length !== Object.keys(current).length;
+      if (!hasChanges) {
+        return current;
+      }
+      return Object.fromEntries(nextEntries);
+    });
+  }, [menuItemMap]);
+
+  const basketLineItems = useMemo(() => {
+    return allMenuItems
+      .map((item) => {
+        const quantity = basketQuantities[item.id] ?? 0;
+        if (quantity <= 0) {
+          return null;
+        }
+
+        return {
+          ...item,
+          quantity,
+          lineTotalMinor: item.priceMinor * quantity,
+        };
+      })
+      .filter(Boolean) as Array<PublicMenuItem & { quantity: number; lineTotalMinor: number }>;
+  }, [allMenuItems, basketQuantities]);
+
+  const basketItemsCount = useMemo(
+    () => basketLineItems.reduce((sum, item) => sum + item.quantity, 0),
+    [basketLineItems],
+  );
+  const basketTotalMinor = useMemo(
+    () => basketLineItems.reduce((sum, item) => sum + item.lineTotalMinor, 0),
+    [basketLineItems],
+  );
+  const basketCurrency = basketLineItems[0]?.currency ?? "USD";
+
+  useEffect(() => {
+    if (basketItemsCount === 0) {
+      setIsOrderExpanded(false);
+    }
+  }, [basketItemsCount]);
+
+  const addItemToBasket = (itemId: string) => {
+    setBasketQuantities((current) => ({
+      ...current,
+      [itemId]: (current[itemId] ?? 0) + 1,
+    }));
+  };
+
+  const removeItemFromBasket = (itemId: string) => {
+    setBasketQuantities((current) => {
+      const quantity = current[itemId] ?? 0;
+      if (quantity <= 1) {
+        const next = { ...current };
+        delete next[itemId];
+        return next;
+      }
+
+      return {
+        ...current,
+        [itemId]: quantity - 1,
+      };
+    });
+  };
+
+  const handleConfirmOrder = () => {
+    const query = new URLSearchParams({
+      store: storeSlug,
+      lang: selectedLanguage,
+    });
+    window.location.assign(`/order-confirm?${query.toString()}`);
+  };
+
   const storeName = menuPayload?.store.name ?? storeSlug;
   const socialLinks = toSocialLinks(menuPayload?.store.socialLinks ?? []);
 
@@ -384,6 +509,8 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
                         locale={selectedLanguage}
                         allergens={item.allergens}
                         imageUrl={item.imageUrl ?? undefined}
+                        addButtonText={uiCopy.addToOrderText}
+                        onAddToBasket={() => addItemToBasket(item.id)}
                       />
                     ))}
                   </div>
@@ -402,6 +529,73 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
           socialLinks={socialLinks}
         />
       </div>
+
+      {basketItemsCount > 0 ? (
+        <section className={`order-drawer ${isOrderExpanded ? "order-drawer--expanded" : ""}`}>
+          <button
+            type="button"
+            className="order-drawer__summary"
+            onClick={() => setIsOrderExpanded((current) => !current)}
+          >
+            <div className="order-drawer__summary-left">
+              <strong>{uiCopy.orderLabel}</strong>
+              <span>
+                {basketItemsCount} {uiCopy.orderItemsLabel}
+              </span>
+            </div>
+            <div className="order-drawer__summary-right">
+              {formatMoneyMinor(basketTotalMinor, basketCurrency, selectedLanguage)}
+            </div>
+          </button>
+
+          {isOrderExpanded ? (
+            <div className="order-drawer__panel">
+              <ul className="order-drawer__items">
+                {basketLineItems.length ? (
+                  basketLineItems.map((item) => (
+                    <li key={item.id} className="order-drawer__item">
+                      <div className="order-drawer__item-main">
+                        <p className="order-drawer__item-name">{item.name}</p>
+                        <p className="order-drawer__item-total">
+                          {formatMoneyMinor(item.lineTotalMinor, item.currency, selectedLanguage)}
+                        </p>
+                      </div>
+
+                      <div className="order-drawer__qty-controls">
+                        <button
+                          type="button"
+                          className="order-drawer__qty-button"
+                          onClick={() => removeItemFromBasket(item.id)}
+                        >
+                          -
+                        </button>
+                        <span className="order-drawer__qty-value">{item.quantity}</span>
+                        <button
+                          type="button"
+                          className="order-drawer__qty-button"
+                          onClick={() => addItemToBasket(item.id)}
+                        >
+                          +
+                        </button>
+                      </div>
+                    </li>
+                  ))
+                ) : (
+                  <li className="order-drawer__empty">{uiCopy.orderEmptyText}</li>
+                )}
+              </ul>
+
+              <button
+                type="button"
+                className="order-drawer__confirm-button"
+                onClick={handleConfirmOrder}
+              >
+                {uiCopy.orderConfirmText}
+              </button>
+            </div>
+          ) : null}
+        </section>
+      ) : null}
     </div>
   );
 };
