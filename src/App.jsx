@@ -2,6 +2,7 @@ import React from "react";
 import "./App.css";
 import logo from "./assets/logo.png";
 import MenuPage from "./components/menu/MenuPage";
+import MerchantItemsAdmin from "./components/admin/MerchantItemsAdmin";
 
 const DEFAULT_MENU_SLUG = "dunwuzhai";
 
@@ -26,7 +27,16 @@ const parseMenuSlugFromPath = (pathname) => {
   return null;
 };
 
+const isMerchantAdminPath = (pathname) => {
+  const normalizedPath = pathname.replace(/\/+$/, "");
+  return normalizedPath === "/merchant-admin" || normalizedPath.startsWith("/merchant-admin/");
+};
+
 function App() {
+  if (isMerchantAdminPath(window.location.pathname)) {
+    return <MerchantItemsAdmin />;
+  }
+
   const menuSlug = parseMenuSlugFromPath(window.location.pathname);
   if (menuSlug) {
     return <MenuPage storeSlug={menuSlug} />;

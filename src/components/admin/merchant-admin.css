@@ -1,0 +1,216 @@
+.merchant-admin-page {
+  min-height: 100vh;
+  background: #f3f4f6;
+  color: #111827;
+  padding: 18px;
+}
+
+.merchant-admin-shell {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.merchant-admin-login-card {
+  max-width: 460px;
+  margin: 10vh auto 0;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 20px;
+}
+
+.merchant-admin-login-card h1,
+.merchant-admin-header h1 {
+  margin: 0 0 6px;
+  font-size: 1.4rem;
+}
+
+.merchant-admin-login-card p,
+.merchant-admin-header p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.92rem;
+}
+
+.merchant-admin-header {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.merchant-admin-header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.merchant-admin-inline-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.78rem;
+  color: #4b5563;
+}
+
+.merchant-admin-grid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: 420px 1fr;
+  gap: 14px;
+}
+
+.merchant-admin-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.merchant-admin-card h2 {
+  margin: 0 0 12px;
+  font-size: 1.06rem;
+}
+
+.merchant-admin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.merchant-admin-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.84rem;
+  color: #374151;
+}
+
+.merchant-admin-form input,
+.merchant-admin-form select,
+.merchant-admin-form textarea,
+.merchant-admin-inline-label select {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fff;
+  color: #111827;
+}
+
+.merchant-admin-row {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.merchant-admin-checkbox-row {
+  display: flex;
+  gap: 16px;
+}
+
+.merchant-admin-checkbox-row label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 6px;
+}
+
+.merchant-admin-form-actions {
+  margin-top: 6px;
+  display: flex;
+  gap: 8px;
+}
+
+.merchant-admin-table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.merchant-admin-table-wrap {
+  overflow: auto;
+}
+
+.merchant-admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.merchant-admin-table th,
+.merchant-admin-table td {
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 9px 8px;
+  vertical-align: top;
+}
+
+.merchant-admin-item-name {
+  font-weight: 600;
+}
+
+.merchant-admin-item-desc {
+  margin-top: 3px;
+  color: #6b7280;
+  font-size: 0.8rem;
+}
+
+.merchant-admin-table-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.merchant-admin-empty {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.merchant-admin-error,
+.merchant-admin-success {
+  margin: 10px 2px 0;
+  font-size: 0.88rem;
+}
+
+.merchant-admin-error {
+  color: #b91c1c;
+}
+
+.merchant-admin-success {
+  color: #047857;
+}
+
+.dot {
+  margin: 0 4px;
+  color: #9ca3af;
+}
+
+.merchant-admin-page button {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: #111827;
+  color: #fff;
+  cursor: pointer;
+}
+
+.merchant-admin-page button.secondary {
+  background: #fff;
+  border-color: #d1d5db;
+  color: #111827;
+}
+
+.merchant-admin-page button.danger {
+  background: #b91c1c;
+}
+
+@media (max-width: 1080px) {
+  .merchant-admin-grid {
+    grid-template-columns: 1fr;
+  }
+}

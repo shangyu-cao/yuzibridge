@@ -73,3 +73,21 @@ Admin:
 - `POST /api/admin/auth/login`
 - `GET/POST/PUT/DELETE /api/admin/stores/:storeId/categories`
 - `GET/POST/PUT/DELETE /api/admin/stores/:storeId/items`
+
+## 8) Open merchant admin (item CRUD)
+
+Open:
+
+- `http://localhost:5173/merchant-admin`
+
+Use seeded account:
+
+- Email: `admin+dunwuzhai@yuzibridge.com`
+- Password: `ChangeMe123!`
+
+After login:
+
+- Select store
+- Create item
+- Edit item
+- Delete item
