@@ -83,6 +83,20 @@ Returns full menu payload for one store in target language with fallback already
 - `DELETE /api/admin/stores/:storeId/items/:itemId`
 - `GET /api/admin/stores/:storeId/items`
 
+### Item image upload
+
+- `POST /api/admin/stores/:storeId/uploads/image` (multipart `file`)
+
+### Allergen options
+
+- `GET /api/admin/stores/:storeId/allergens`
+
+### Orders
+
+- `GET /api/admin/stores/:storeId/orders`
+- `PATCH /api/admin/stores/:storeId/orders/:orderId/status` (`accepted|preparing|ready`)
+- `DELETE /api/admin/stores/:storeId/orders/:orderId` (for finish confirmation delete)
+
 ### Store settings
 
 - `GET /api/admin/stores/:storeId/profile`

@@ -51,3 +51,23 @@ select
 from menu_item_allergens mia
 join allergens a on a.id = mia.allergen_id
 order by mia.item_id, a.code;
+
+\echo '=== orders ==='
+select
+  o.id,
+  o.store_id,
+  o.table_code,
+  o.status,
+  o.created_at
+from orders o
+order by o.created_at desc;
+
+\echo '=== order items ==='
+select
+  oi.order_id,
+  oi.item_name_snapshot,
+  oi.quantity,
+  oi.price_minor,
+  oi.currency_code
+from order_items oi
+order by oi.created_at desc;

@@ -22,6 +22,12 @@ Apply schema:
 psql "$DATABASE_URL" -f docs/menu-saas/database/schema.postgres.sql
 ```
 
+If your database was created before order support was added, run migration too:
+
+```bash
+psql "$DATABASE_URL" -f docs/menu-saas/database/migration_orders_and_allergens.sql
+```
+
 ## 4) Seed demo store + admin + menu data
 
 ```bash
@@ -74,7 +80,7 @@ Admin:
 - `GET/POST/PUT/DELETE /api/admin/stores/:storeId/categories`
 - `GET/POST/PUT/DELETE /api/admin/stores/:storeId/items`
 
-## 8) Open merchant admin (item CRUD)
+## 8) Open merchant admin (categories/items/orders)
 
 Open:
 
@@ -88,6 +94,6 @@ Use seeded account:
 After login:
 
 - Select store
-- Create item
-- Edit item
-- Delete item
+- Category CRUD
+- Item CRUD (with image upload and allergen checkboxes)
+- Order board with actions: `accept` -> `prepare` -> `ready` -> `finish`

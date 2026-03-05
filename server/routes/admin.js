@@ -59,6 +59,11 @@ const itemParamsSchema = z.object({
   itemId: z.string().uuid(),
 });
 
+const orderParamsSchema = z.object({
+  storeId: z.string().uuid(),
+  orderId: z.string().uuid(),
+});
+
 const languageQuerySchema = z.object({
   lang: z.string().min(2).max(10).optional(),
 });
@@ -115,6 +120,10 @@ const updateItemSchema = z.object({
   isAvailable: z.boolean().optional(),
   languageCode: z.string().min(2).max(10).optional(),
   allergenCodes: z.array(z.string().trim().min(1).max(100)).max(40).optional(),
+});
+
+const updateOrderStatusSchema = z.object({
+  status: z.enum(["accepted", "preparing", "ready"]),
 });
 
 const normalizeAllergenCodes = (codes = []) => {
@@ -839,6 +848,122 @@ router.delete(
 
     if (deleteResult.rowCount === 0) {
       throw new HttpError(404, "Item not found");
+    }
+
+    res.status(204).send();
+  }),
+);
+
+router.get(
+  "/stores/:storeId/orders",
+  requireStoreRole(readOnlyRoles),
+  asyncHandler(async (req, res) => {
+    const { storeId } = storeParamsSchema.parse(req.params);
+    await getActiveStoreForAdmin({ query }, storeId);
+
+    const ordersResult = await query(
+      `
+        select
+          o.id,
+          o.store_id,
+          o.table_code,
+          o.status,
+          o.created_at,
+          o.updated_at,
+          coalesce(sum(oi.price_minor * oi.quantity), 0) as total_minor,
+          coalesce(max(oi.currency_code), 'CNY') as currency_code,
+          coalesce(
+            json_agg(
+              json_build_object(
+                'id', oi.id,
+                'menuItemId', oi.menu_item_id,
+                'itemName', oi.item_name_snapshot,
+                'priceMinor', oi.price_minor,
+                'currencyCode', oi.currency_code,
+                'quantity', oi.quantity
+              )
+              order by oi.id
+            ) filter (where oi.id is not null),
+            '[]'::json
+          ) as items
+        from orders o
+        left join order_items oi on oi.order_id = o.id
+        where o.store_id = $1
+        group by o.id, o.store_id, o.table_code, o.status, o.created_at, o.updated_at
+        order by o.created_at desc
+      `,
+      [storeId],
+    );
+
+    res.json({
+      storeId,
+      orders: ordersResult.rows.map((row) => ({
+        id: row.id,
+        storeId: row.store_id,
+        tableCode: row.table_code,
+        status: row.status,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        totalMinor: Number(row.total_minor ?? 0),
+        currencyCode: row.currency_code,
+        items: row.items ?? [],
+      })),
+    });
+  }),
+);
+
+router.patch(
+  "/stores/:storeId/orders/:orderId/status",
+  requireStoreRole(editRoles),
+  asyncHandler(async (req, res) => {
+    const { storeId, orderId } = orderParamsSchema.parse(req.params);
+    const payload = updateOrderStatusSchema.parse(req.body);
+    await getActiveStoreForAdmin({ query }, storeId);
+
+    const updateResult = await query(
+      `
+        update orders
+        set status = $3, updated_at = now()
+        where id = $1 and store_id = $2
+        returning id, store_id, table_code, status, created_at, updated_at
+      `,
+      [orderId, storeId, payload.status],
+    );
+
+    if (updateResult.rowCount === 0) {
+      throw new HttpError(404, "Order not found");
+    }
+
+    res.json({
+      order: {
+        id: updateResult.rows[0].id,
+        storeId: updateResult.rows[0].store_id,
+        tableCode: updateResult.rows[0].table_code,
+        status: updateResult.rows[0].status,
+        createdAt: updateResult.rows[0].created_at,
+        updatedAt: updateResult.rows[0].updated_at,
+      },
+    });
+  }),
+);
+
+router.delete(
+  "/stores/:storeId/orders/:orderId",
+  requireStoreRole(editRoles),
+  asyncHandler(async (req, res) => {
+    const { storeId, orderId } = orderParamsSchema.parse(req.params);
+    await getActiveStoreForAdmin({ query }, storeId);
+
+    const deleteResult = await query(
+      `
+        delete from orders
+        where id = $1 and store_id = $2
+      `,
+      [orderId, storeId],
+    );
+
+    if (deleteResult.rowCount === 0) {
+      throw new HttpError(404, "Order not found");
     }
 
     res.status(204).send();

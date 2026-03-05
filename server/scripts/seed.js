@@ -368,6 +368,7 @@ const resetStoreMenu = async (client, storeId) => {
 const insertSeedMenu = async (client, { store, allergenIdMap }) => {
   let categoryCount = 0;
   let itemCount = 0;
+  const createdItems = [];
 
   for (const categorySeed of MENU_SEED) {
     const categoryResult = await client.query(
@@ -423,6 +424,12 @@ const insertSeedMenu = async (client, { store, allergenIdMap }) => {
 
       const itemId = itemResult.rows[0].id;
       itemCount += 1;
+      createdItems.push({
+        id: itemId,
+        name: itemSeed.translations["zh-CN"]?.name ?? itemSeed.sku,
+        priceMinor: itemSeed.priceMinor,
+        currencyCode: itemSeed.currencyCode ?? store.default_currency_code,
+      });
 
       for (const language of LANGUAGE_ROWS) {
         const translation = itemSeed.translations[language.code];
@@ -459,7 +466,80 @@ const insertSeedMenu = async (client, { store, allergenIdMap }) => {
     }
   }
 
-  return { categoryCount, itemCount };
+  return { categoryCount, itemCount, createdItems };
+};
+
+const seedSampleOrders = async (client, storeId, createdItems) => {
+  await client.query(
+    `
+      delete from orders
+      where store_id = $1
+    `,
+    [storeId],
+  );
+
+  if (!createdItems.length) {
+    return 0;
+  }
+
+  const firstItem = createdItems[0];
+  const secondItem = createdItems[1] ?? createdItems[0];
+  const thirdItem = createdItems[2] ?? createdItems[0];
+
+  const order1Result = await client.query(
+    `
+      insert into orders (store_id, table_code, status, note)
+      values ($1, $2, 'new', $3)
+      returning id
+    `,
+    [storeId, "A1", "Less spicy please"],
+  );
+  const order1Id = order1Result.rows[0].id;
+
+  await client.query(
+    `
+      insert into order_items
+        (order_id, menu_item_id, item_name_snapshot, price_minor, currency_code, quantity)
+      values
+        ($1, $2, $3, $4, $5, $6),
+        ($1, $7, $8, $9, $10, $11)
+    `,
+    [
+      order1Id,
+      firstItem.id,
+      firstItem.name,
+      firstItem.priceMinor,
+      firstItem.currencyCode,
+      1,
+      secondItem.id,
+      secondItem.name,
+      secondItem.priceMinor,
+      secondItem.currencyCode,
+      2,
+    ],
+  );
+
+  const order2Result = await client.query(
+    `
+      insert into orders (store_id, table_code, status, note)
+      values ($1, $2, 'accepted', $3)
+      returning id
+    `,
+    [storeId, "B3", "No peanuts"],
+  );
+  const order2Id = order2Result.rows[0].id;
+
+  await client.query(
+    `
+      insert into order_items
+        (order_id, menu_item_id, item_name_snapshot, price_minor, currency_code, quantity)
+      values
+        ($1, $2, $3, $4, $5, $6)
+    `,
+    [order2Id, thirdItem.id, thirdItem.name, thirdItem.priceMinor, thirdItem.currencyCode, 1],
+  );
+
+  return 2;
 };
 
 const upsertStoreQr = async (client, storeSlug, storeId) => {
@@ -501,7 +581,11 @@ const run = async () => {
 
     const allergenIdMap = await upsertAllergens(client);
     await resetStoreMenu(client, store.id);
-    const { categoryCount, itemCount } = await insertSeedMenu(client, { store, allergenIdMap });
+    const { categoryCount, itemCount, createdItems } = await insertSeedMenu(client, {
+      store,
+      allergenIdMap,
+    });
+    const orderCount = await seedSampleOrders(client, store.id, createdItems);
     await upsertStoreQr(client, store.slug, store.id);
 
     await client.query("commit");
@@ -515,6 +599,7 @@ const run = async () => {
     console.log(`[seed] store: ${store.brand_name} (${store.slug})`);
     console.log(`[seed] store_id: ${store.id}`);
     console.log(`[seed] categories: ${categoryCount}, items: ${itemCount}`);
+    console.log(`[seed] sample_orders: ${orderCount}`);
     console.log(`[seed] admin_email: ${adminUser.email}`);
     console.log(`[seed] admin_password: ${SEED_ADMIN_PASSWORD}${defaultPasswordNotice}`);
     console.log(`[seed] qr target: https://www.yuzibridge.com/menu/${store.slug}`);

@@ -20,7 +20,14 @@ const DEFAULT_ALLERGEN_OPTIONS = [
   { code: "sesame", label: "Sesame" },
 ];
 
-const emptyForm = {
+const ORDER_STATUS_LABEL = {
+  new: "new",
+  accepted: "accepted",
+  preparing: "prepare",
+  ready: "ready",
+};
+
+const EMPTY_ITEM_FORM = {
   categoryId: "",
   name: "",
   description: "",
@@ -31,6 +38,13 @@ const emptyForm = {
   isActive: true,
   isAvailable: true,
   allergenCodes: [],
+};
+
+const EMPTY_CATEGORY_FORM = {
+  name: "",
+  description: "",
+  sortOrder: "0",
+  isActive: true,
 };
 
 const parseStoredJson = (value, fallback) => {
@@ -50,19 +64,11 @@ const formatMoneyMinor = (value, currency = "CNY") => {
   }).format((value ?? 0) / 100);
 };
 
-const normalizeItemForm = (item) => {
-  return {
-    categoryId: item.categoryId ?? "",
-    name: item.name ?? "",
-    description: item.description ?? "",
-    price: ((item.priceMinor ?? 0) / 100).toFixed(2),
-    currencyCode: item.currencyCode ?? "CNY",
-    imageUrl: item.imageUrl ?? "",
-    sortOrder: String(item.sortOrder ?? 0),
-    isActive: Boolean(item.isActive),
-    isAvailable: Boolean(item.isAvailable),
-    allergenCodes: Array.isArray(item.allergenCodes) ? item.allergenCodes : [],
-  };
+const formatDatetime = (value) => {
+  if (!value) return "-";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "-";
+  return date.toLocaleString("zh-CN");
 };
 
 const toItemPayload = (form) => {
@@ -86,6 +92,33 @@ const toItemPayload = (form) => {
   };
 };
 
+const toCategoryPayload = (form) => ({
+  name: form.name.trim(),
+  description: form.description.trim() || null,
+  sortOrder: Math.max(0, Number.parseInt(form.sortOrder || "0", 10) || 0),
+  isActive: Boolean(form.isActive),
+});
+
+const normalizeItemForm = (item) => ({
+  categoryId: item.categoryId ?? "",
+  name: item.name ?? "",
+  description: item.description ?? "",
+  price: ((item.priceMinor ?? 0) / 100).toFixed(2),
+  currencyCode: item.currencyCode ?? "CNY",
+  imageUrl: item.imageUrl ?? "",
+  sortOrder: String(item.sortOrder ?? 0),
+  isActive: Boolean(item.isActive),
+  isAvailable: Boolean(item.isAvailable),
+  allergenCodes: Array.isArray(item.allergenCodes) ? item.allergenCodes : [],
+});
+
+const normalizeCategoryForm = (category) => ({
+  name: category.name ?? "",
+  description: category.description ?? "",
+  sortOrder: String(category.sortOrder ?? 0),
+  isActive: Boolean(category.isActive),
+});
+
 const MerchantItemsAdmin = () => {
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || "");
   const [user, setUser] = useState(() => parseStoredJson(localStorage.getItem(USER_KEY), null));
@@ -97,20 +130,29 @@ const MerchantItemsAdmin = () => {
   const [email, setEmail] = useState("admin+dunwuzhai@yuzibridge.com");
   const [password, setPassword] = useState("ChangeMe123!");
 
+  const [activeTab, setActiveTab] = useState("items");
+
   const [categories, setCategories] = useState([]);
   const [items, setItems] = useState([]);
+  const [orders, setOrders] = useState([]);
   const [allergenOptions, setAllergenOptions] = useState(DEFAULT_ALLERGEN_OPTIONS);
+
   const [searchKeyword, setSearchKeyword] = useState("");
   const [activeCategoryFilter, setActiveCategoryFilter] = useState("all");
+
   const [loading, setLoading] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [uploadLoading, setUploadLoading] = useState(false);
+  const [orderActionLoadingId, setOrderActionLoadingId] = useState("");
+
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
 
   const [editingItemId, setEditingItemId] = useState(null);
-  const [itemForm, setItemForm] = useState(emptyForm);
+  const [itemForm, setItemForm] = useState(EMPTY_ITEM_FORM);
+  const [editingCategoryId, setEditingCategoryId] = useState(null);
+  const [categoryForm, setCategoryForm] = useState(EMPTY_CATEGORY_FORM);
 
   const categoryNameMap = useMemo(
     () => new Map(categories.map((category) => [category.id, category.name])),
@@ -119,88 +161,74 @@ const MerchantItemsAdmin = () => {
 
   const filteredItems = useMemo(() => {
     const keyword = searchKeyword.trim().toLowerCase();
-
     return items.filter((item) => {
       const passCategory = activeCategoryFilter === "all" || item.categoryId === activeCategoryFilter;
-      if (!passCategory) {
-        return false;
-      }
+      if (!passCategory) return false;
 
-      if (!keyword) {
-        return true;
-      }
-
-      const targetText = [item.name, item.description, ...(item.allergenCodes ?? [])]
+      if (!keyword) return true;
+      const content = [item.name, item.description, ...(item.allergenCodes ?? [])]
         .filter(Boolean)
         .join(" ")
         .toLowerCase();
-      return targetText.includes(keyword);
+      return content.includes(keyword);
     });
   }, [activeCategoryFilter, items, searchKeyword]);
 
-  const fetchWithAuth = useCallback(async (path, options = {}) => {
-    const response = await fetch(`${API_BASE_URL}${path}`, {
-      ...options,
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-        ...(options.headers ?? {}),
-      },
-    });
+  const fetchWithAuth = useCallback(
+    async (path, options = {}) => {
+      const response = await fetch(`${API_BASE_URL}${path}`, {
+        ...options,
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+          ...(options.headers ?? {}),
+        },
+      });
 
-    if (!response.ok) {
-      let message = `请求失败 (${response.status})`;
-      try {
-        const payload = await response.json();
-        if (payload?.message) {
-          message = payload.message;
+      if (!response.ok) {
+        let message = `请求失败 (${response.status})`;
+        try {
+          const payload = await response.json();
+          if (payload?.message) message = payload.message;
+        } catch {
+          // ignore parse failure
         }
-      } catch {
-        // ignore parse failure
+        throw new Error(message);
       }
-      throw new Error(message);
-    }
 
-    if (response.status === 204) {
-      return null;
-    }
-
-    return response.json();
-  }, [token]);
-
-  const resetForm = () => {
-    setEditingItemId(null);
-    setItemForm((current) => ({
-      ...emptyForm,
-      categoryId: current.categoryId || categories[0]?.id || "",
-    }));
-  };
+      if (response.status === 204) return null;
+      return response.json();
+    },
+    [token],
+  );
 
   const loadData = useCallback(async () => {
-    if (!token || !selectedStoreId) {
-      return;
-    }
+    if (!token || !selectedStoreId) return;
 
     setLoading(true);
     setErrorMessage("");
+
     try {
-      const [categoryResp, itemResp, allergenResp] = await Promise.all([
+      const [categoryResp, itemResp, allergenResp, orderResp] = await Promise.all([
         fetchWithAuth(`/api/admin/stores/${selectedStoreId}/categories`),
         fetchWithAuth(`/api/admin/stores/${selectedStoreId}/items`),
         fetchWithAuth(`/api/admin/stores/${selectedStoreId}/allergens`),
+        fetchWithAuth(`/api/admin/stores/${selectedStoreId}/orders`),
       ]);
 
       setCategories(categoryResp?.categories ?? []);
       setItems(itemResp?.items ?? []);
+      setOrders(orderResp?.orders ?? []);
       setAllergenOptions(DEFAULT_ALLERGEN_OPTIONS);
+
       setItemForm((current) => ({
         ...current,
         categoryId: current.categoryId || categoryResp?.categories?.[0]?.id || "",
       }));
 
-      const backendAllergenCodes = new Set((allergenResp?.allergens ?? []).map((allergen) => allergen.code));
-      const missingCodes = DEFAULT_ALLERGEN_OPTIONS.map((item) => item.code).filter(
-        (code) => backendAllergenCodes.size > 0 && !backendAllergenCodes.has(code),
+      const backendCodes = new Set((allergenResp?.allergens ?? []).map((a) => a.code));
+      const missingCodes = DEFAULT_ALLERGEN_OPTIONS.map((x) => x.code).filter(
+        (code) => backendCodes.size > 0 && !backendCodes.has(code),
       );
       if (missingCodes.length > 0) {
         setErrorMessage(`数据库缺少过敏源代码: ${missingCodes.join(", ")}。请先运行 npm run db:seed`);
@@ -213,22 +241,28 @@ const MerchantItemsAdmin = () => {
   }, [fetchWithAuth, selectedStoreId, token]);
 
   useEffect(() => {
-    if (!token) {
-      return;
-    }
+    if (!token) return;
     loadData();
   }, [loadData, token]);
 
   useEffect(() => {
-    if (activeCategoryFilter === "all") {
-      return;
-    }
-
+    if (activeCategoryFilter === "all") return;
     const exists = categories.some((category) => category.id === activeCategoryFilter);
-    if (!exists) {
-      setActiveCategoryFilter("all");
-    }
+    if (!exists) setActiveCategoryFilter("all");
   }, [activeCategoryFilter, categories]);
+
+  const resetItemForm = () => {
+    setEditingItemId(null);
+    setItemForm({
+      ...EMPTY_ITEM_FORM,
+      categoryId: categories[0]?.id ?? "",
+    });
+  };
+
+  const resetCategoryForm = () => {
+    setEditingCategoryId(null);
+    setCategoryForm(EMPTY_CATEGORY_FORM);
+  };
 
   const handleLogin = async (event) => {
     event.preventDefault();
@@ -249,11 +283,11 @@ const MerchantItemsAdmin = () => {
       }
 
       const payload = await response.json();
+      const nextStoreId = payload.memberships?.[0]?.store_id ?? "";
+
       setToken(payload.token);
       setUser(payload.user);
       setMemberships(payload.memberships ?? []);
-
-      const nextStoreId = payload.memberships?.[0]?.store_id ?? "";
       setSelectedStoreId(nextStoreId);
 
       localStorage.setItem(TOKEN_KEY, payload.token);
@@ -276,8 +310,9 @@ const MerchantItemsAdmin = () => {
     setSelectedStoreId("");
     setCategories([]);
     setItems([]);
-    setEditingItemId(null);
-    setItemForm(emptyForm);
+    setOrders([]);
+    resetItemForm();
+    resetCategoryForm();
     setSuccessMessage("已退出登录");
     setErrorMessage("");
     localStorage.removeItem(TOKEN_KEY);
@@ -289,31 +324,24 @@ const MerchantItemsAdmin = () => {
   const handleStoreChange = (storeId) => {
     setSelectedStoreId(storeId);
     localStorage.setItem(STORE_KEY, storeId);
-    setEditingItemId(null);
+    resetItemForm();
+    resetCategoryForm();
     setSearchKeyword("");
     setActiveCategoryFilter("all");
   };
 
   const handleAllergenToggle = (allergenCode) => {
     setItemForm((current) => {
-      const currentSet = new Set(current.allergenCodes ?? []);
-      if (currentSet.has(allergenCode)) {
-        currentSet.delete(allergenCode);
-      } else {
-        currentSet.add(allergenCode);
-      }
+      const set = new Set(current.allergenCodes ?? []);
+      if (set.has(allergenCode)) set.delete(allergenCode);
+      else set.add(allergenCode);
 
-      return {
-        ...current,
-        allergenCodes: [...currentSet],
-      };
+      return { ...current, allergenCodes: [...set] };
     });
   };
 
   const handleImageUpload = async (file) => {
-    if (!file) {
-      return;
-    }
+    if (!file) return;
     if (!selectedStoreId) {
       setErrorMessage("请先选择店铺");
       return;
@@ -322,15 +350,14 @@ const MerchantItemsAdmin = () => {
     setUploadLoading(true);
     setErrorMessage("");
     setSuccessMessage("");
+
     try {
       const formData = new FormData();
       formData.append("file", file);
 
       const response = await fetch(`${API_BASE_URL}/api/admin/stores/${selectedStoreId}/uploads/image`, {
         method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
         body: formData,
       });
 
@@ -340,10 +367,7 @@ const MerchantItemsAdmin = () => {
       }
 
       const payload = await response.json();
-      setItemForm((current) => ({
-        ...current,
-        imageUrl: payload.imageUrl ?? "",
-      }));
+      setItemForm((current) => ({ ...current, imageUrl: payload.imageUrl ?? "" }));
       setSuccessMessage("图片上传成功");
     } catch (error) {
       setErrorMessage(error.message || "上传图片失败");
@@ -352,16 +376,16 @@ const MerchantItemsAdmin = () => {
     }
   };
 
-  const handleEdit = (item) => {
+  const handleEditItem = (item) => {
     setEditingItemId(item.id);
     setItemForm(normalizeItemForm(item));
+    setActiveTab("items");
     setSuccessMessage("");
     setErrorMessage("");
   };
 
-  const handleDelete = async (item) => {
-    const shouldDelete = window.confirm(`确定删除菜品「${item.name}」吗？`);
-    if (!shouldDelete) return;
+  const handleDeleteItem = async (item) => {
+    if (!window.confirm(`确定删除菜品「${item.name}」吗？`)) return;
 
     setErrorMessage("");
     setSuccessMessage("");
@@ -369,17 +393,15 @@ const MerchantItemsAdmin = () => {
       await fetchWithAuth(`/api/admin/stores/${selectedStoreId}/items/${item.id}`, {
         method: "DELETE",
       });
-      setSuccessMessage("删除成功");
+      setSuccessMessage("菜品删除成功");
       await loadData();
-      if (editingItemId === item.id) {
-        resetForm();
-      }
+      if (editingItemId === item.id) resetItemForm();
     } catch (error) {
       setErrorMessage(error.message || "删除失败");
     }
   };
 
-  const handleSubmit = async (event) => {
+  const handleSubmitItem = async (event) => {
     event.preventDefault();
     if (!selectedStoreId) {
       setErrorMessage("请先选择店铺");
@@ -396,9 +418,7 @@ const MerchantItemsAdmin = () => {
 
     try {
       const payload = toItemPayload(itemForm);
-      if (!payload.name) {
-        throw new Error("菜品名称不能为空");
-      }
+      if (!payload.name) throw new Error("菜品名称不能为空");
 
       if (editingItemId) {
         await fetchWithAuth(`/api/admin/stores/${selectedStoreId}/items/${editingItemId}`, {
@@ -415,11 +435,112 @@ const MerchantItemsAdmin = () => {
       }
 
       await loadData();
-      resetForm();
+      resetItemForm();
     } catch (error) {
       setErrorMessage(error.message || "保存失败");
     } finally {
       setSubmitLoading(false);
+    }
+  };
+
+  const handleEditCategory = (category) => {
+    setEditingCategoryId(category.id);
+    setCategoryForm(normalizeCategoryForm(category));
+    setActiveTab("categories");
+    setSuccessMessage("");
+    setErrorMessage("");
+  };
+
+  const handleDeleteCategory = async (category) => {
+    if (!window.confirm(`确定删除分类「${category.name}」吗？`)) return;
+
+    setErrorMessage("");
+    setSuccessMessage("");
+    try {
+      await fetchWithAuth(`/api/admin/stores/${selectedStoreId}/categories/${category.id}`, {
+        method: "DELETE",
+      });
+      setSuccessMessage("分类删除成功");
+      await loadData();
+      if (editingCategoryId === category.id) resetCategoryForm();
+    } catch (error) {
+      setErrorMessage(error.message || "删除分类失败（请先删除分类下菜品）");
+    }
+  };
+
+  const handleSubmitCategory = async (event) => {
+    event.preventDefault();
+    if (!selectedStoreId) {
+      setErrorMessage("请先选择店铺");
+      return;
+    }
+
+    setSubmitLoading(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+
+    try {
+      const payload = toCategoryPayload(categoryForm);
+      if (!payload.name) throw new Error("分类名称不能为空");
+
+      if (editingCategoryId) {
+        await fetchWithAuth(`/api/admin/stores/${selectedStoreId}/categories/${editingCategoryId}`, {
+          method: "PUT",
+          body: JSON.stringify(payload),
+        });
+        setSuccessMessage("分类更新成功");
+      } else {
+        await fetchWithAuth(`/api/admin/stores/${selectedStoreId}/categories`, {
+          method: "POST",
+          body: JSON.stringify(payload),
+        });
+        setSuccessMessage("分类创建成功");
+      }
+
+      await loadData();
+      resetCategoryForm();
+    } catch (error) {
+      setErrorMessage(error.message || "保存分类失败");
+    } finally {
+      setSubmitLoading(false);
+    }
+  };
+
+  const handleUpdateOrderStatus = async (order, status) => {
+    setOrderActionLoadingId(order.id);
+    setErrorMessage("");
+    setSuccessMessage("");
+    try {
+      await fetchWithAuth(`/api/admin/stores/${selectedStoreId}/orders/${order.id}/status`, {
+        method: "PATCH",
+        body: JSON.stringify({ status }),
+      });
+      setSuccessMessage(`订单 ${order.tableCode ?? "-"} 状态已更新`);
+      await loadData();
+    } catch (error) {
+      setErrorMessage(error.message || "更新订单状态失败");
+    } finally {
+      setOrderActionLoadingId("");
+    }
+  };
+
+  const handleFinishOrder = async (order) => {
+    const confirmed = window.confirm("确认完成并删除该订单吗？删除后将从列表消失。");
+    if (!confirmed) return;
+
+    setOrderActionLoadingId(order.id);
+    setErrorMessage("");
+    setSuccessMessage("");
+    try {
+      await fetchWithAuth(`/api/admin/stores/${selectedStoreId}/orders/${order.id}`, {
+        method: "DELETE",
+      });
+      setSuccessMessage(`订单 ${order.tableCode ?? "-"} 已完成并移除`);
+      await loadData();
+    } catch (error) {
+      setErrorMessage(error.message || "完成订单失败");
+    } finally {
+      setOrderActionLoadingId("");
     }
   };
 
@@ -428,7 +549,7 @@ const MerchantItemsAdmin = () => {
       <div className="merchant-admin-page">
         <div className="merchant-admin-login-card">
           <h1>商家后台登录</h1>
-          <p>登录后可管理菜品（增删改查）</p>
+          <p>登录后可管理分类、菜品与订单</p>
 
           <form onSubmit={handleLogin} className="merchant-admin-form">
             <label>
@@ -440,7 +561,6 @@ const MerchantItemsAdmin = () => {
                 required
               />
             </label>
-
             <label>
               密码
               <input
@@ -450,7 +570,6 @@ const MerchantItemsAdmin = () => {
                 required
               />
             </label>
-
             <button type="submit" disabled={loginLoading}>
               {loginLoading ? "登录中..." : "登录"}
             </button>
@@ -468,17 +587,14 @@ const MerchantItemsAdmin = () => {
       <div className="merchant-admin-shell">
         <header className="merchant-admin-header">
           <div>
-            <h1>商家后台 · 菜品管理</h1>
+            <h1>商家后台管理</h1>
             <p>{user?.email ?? ""}</p>
           </div>
 
           <div className="merchant-admin-header-actions">
             <label className="merchant-admin-inline-label">
               店铺
-              <select
-                value={selectedStoreId}
-                onChange={(event) => handleStoreChange(event.target.value)}
-              >
+              <select value={selectedStoreId} onChange={(event) => handleStoreChange(event.target.value)}>
                 {memberships.map((membership) => (
                   <option key={membership.store_id} value={membership.store_id}>
                     {membership.store_id.slice(0, 8)}... ({membership.role})
@@ -492,284 +608,494 @@ const MerchantItemsAdmin = () => {
           </div>
         </header>
 
+        <div className="merchant-admin-tabs">
+          <button
+            type="button"
+            className={activeTab === "categories" ? "secondary active-filter" : "secondary"}
+            onClick={() => setActiveTab("categories")}
+          >
+            分类管理
+          </button>
+          <button
+            type="button"
+            className={activeTab === "items" ? "secondary active-filter" : "secondary"}
+            onClick={() => setActiveTab("items")}
+          >
+            菜品管理
+          </button>
+          <button
+            type="button"
+            className={activeTab === "orders" ? "secondary active-filter" : "secondary"}
+            onClick={() => setActiveTab("orders")}
+          >
+            订单管理
+          </button>
+        </div>
+
         {errorMessage ? <p className="merchant-admin-error">{errorMessage}</p> : null}
         {successMessage ? <p className="merchant-admin-success">{successMessage}</p> : null}
 
-        <div className="merchant-admin-grid">
-          <section className="merchant-admin-card">
-            <h2>{editingItemId ? "编辑菜品" : "新增菜品"}</h2>
-            <form onSubmit={handleSubmit} className="merchant-admin-form">
-              <label>
-                分类
-                <select
-                  value={itemForm.categoryId}
-                  onChange={(event) =>
-                    setItemForm((current) => ({ ...current, categoryId: event.target.value }))
-                  }
-                  required
-                >
-                  <option value="">请选择分类</option>
-                  {categories.map((category) => (
-                    <option key={category.id} value={category.id}>
-                      {category.name}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label>
-                菜品名称
-                <input
-                  type="text"
-                  value={itemForm.name}
-                  onChange={(event) =>
-                    setItemForm((current) => ({ ...current, name: event.target.value }))
-                  }
-                  required
-                />
-              </label>
-
-              <label>
-                描述
-                <textarea
-                  value={itemForm.description}
-                  onChange={(event) =>
-                    setItemForm((current) => ({ ...current, description: event.target.value }))
-                  }
-                  rows={3}
-                />
-              </label>
-
-              <div className="merchant-admin-row">
+        {activeTab === "categories" ? (
+          <div className="merchant-admin-grid">
+            <section className="merchant-admin-card">
+              <h2>{editingCategoryId ? "编辑分类" : "新增分类"}</h2>
+              <form onSubmit={handleSubmitCategory} className="merchant-admin-form">
                 <label>
-                  价格
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.01"
-                    value={itemForm.price}
-                    onChange={(event) =>
-                      setItemForm((current) => ({ ...current, price: event.target.value }))
-                    }
-                    required
-                  />
-                </label>
-
-                <label>
-                  货币
+                  分类名称
                   <input
                     type="text"
-                    maxLength={3}
-                    value={itemForm.currencyCode}
+                    value={categoryForm.name}
                     onChange={(event) =>
-                      setItemForm((current) => ({ ...current, currencyCode: event.target.value }))
+                      setCategoryForm((current) => ({ ...current, name: event.target.value }))
                     }
                     required
                   />
                 </label>
-              </div>
-
-              <div className="merchant-admin-row">
+                <label>
+                  描述
+                  <textarea
+                    rows={3}
+                    value={categoryForm.description}
+                    onChange={(event) =>
+                      setCategoryForm((current) => ({ ...current, description: event.target.value }))
+                    }
+                  />
+                </label>
                 <label>
                   排序
                   <input
                     type="number"
                     min="0"
-                    value={itemForm.sortOrder}
+                    value={categoryForm.sortOrder}
                     onChange={(event) =>
-                      setItemForm((current) => ({ ...current, sortOrder: event.target.value }))
+                      setCategoryForm((current) => ({ ...current, sortOrder: event.target.value }))
                     }
                   />
                 </label>
-
-                <label>
-                  图片
-                  <input
-                    type="file"
-                    accept="image/png,image/jpeg,image/webp,image/gif"
-                    disabled={uploadLoading}
-                    onChange={(event) => handleImageUpload(event.target.files?.[0])}
-                  />
-                  <small className="merchant-admin-help">
-                    {uploadLoading ? "上传中..." : "支持 jpeg/png/webp/gif，最大 5MB"}
-                  </small>
-                </label>
-              </div>
-
-              <label>
-                图片 URL
-                <input
-                  type="url"
-                  placeholder="https://..."
-                  value={itemForm.imageUrl}
-                  onChange={(event) =>
-                    setItemForm((current) => ({ ...current, imageUrl: event.target.value }))
-                  }
-                />
-              </label>
-
-              {itemForm.imageUrl ? (
-                <div className="merchant-admin-image-preview">
-                  <img src={itemForm.imageUrl} alt="preview" />
-                </div>
-              ) : null}
-
-              <fieldset className="merchant-admin-allergen-fieldset">
-                <legend>过敏源</legend>
-                <div className="merchant-admin-allergen-grid">
-                  {allergenOptions.map((allergen) => {
-                    const checked = (itemForm.allergenCodes ?? []).includes(allergen.code);
-                    return (
-                      <label key={allergen.code} className="merchant-admin-allergen-option">
-                        <input
-                          type="checkbox"
-                          checked={checked}
-                          onChange={() => handleAllergenToggle(allergen.code)}
-                        />
-                        <span>{allergen.label}</span>
-                        <code>{allergen.code}</code>
-                      </label>
-                    );
-                  })}
-                </div>
-              </fieldset>
-
-              <div className="merchant-admin-checkbox-row">
-                <label>
+                <label className="merchant-admin-checkbox-row">
                   <input
                     type="checkbox"
-                    checked={itemForm.isActive}
+                    checked={categoryForm.isActive}
                     onChange={(event) =>
-                      setItemForm((current) => ({ ...current, isActive: event.target.checked }))
+                      setCategoryForm((current) => ({ ...current, isActive: event.target.checked }))
                     }
                   />
                   启用
                 </label>
+                <div className="merchant-admin-form-actions">
+                  <button type="submit" disabled={submitLoading}>
+                    {submitLoading ? "保存中..." : editingCategoryId ? "保存修改" : "创建分类"}
+                  </button>
+                  <button type="button" className="secondary" onClick={resetCategoryForm}>
+                    重置
+                  </button>
+                </div>
+              </form>
+            </section>
 
-                <label>
-                  <input
-                    type="checkbox"
-                    checked={itemForm.isAvailable}
-                    onChange={(event) =>
-                      setItemForm((current) => ({ ...current, isAvailable: event.target.checked }))
-                    }
-                  />
-                  可售
-                </label>
-              </div>
-
-              <div className="merchant-admin-form-actions">
-                <button type="submit" disabled={submitLoading}>
-                  {submitLoading ? "保存中..." : editingItemId ? "保存修改" : "创建菜品"}
-                </button>
-                <button type="button" className="secondary" onClick={resetForm}>
-                  重置
-                </button>
-              </div>
-            </form>
-          </section>
-
-          <section className="merchant-admin-card">
-            <div className="merchant-admin-table-header">
-              <h2>菜品列表</h2>
-              <div className="merchant-admin-table-header-actions">
-                <input
-                  className="merchant-admin-search-input"
-                  type="search"
-                  placeholder="搜索菜品名称/描述/过敏源"
-                  value={searchKeyword}
-                  onChange={(event) => setSearchKeyword(event.target.value)}
-                />
+            <section className="merchant-admin-card">
+              <div className="merchant-admin-table-header">
+                <h2>分类列表</h2>
                 <button type="button" className="secondary" onClick={loadData} disabled={loading}>
                   {loading ? "刷新中..." : "刷新"}
                 </button>
               </div>
-            </div>
 
-            <div className="merchant-admin-category-filters">
-              <button
-                type="button"
-                className={`secondary ${activeCategoryFilter === "all" ? "active-filter" : ""}`}
-                onClick={() => setActiveCategoryFilter("all")}
-              >
-                全部 ({items.length})
-              </button>
-              {categories.map((category) => {
-                const count = items.filter((item) => item.categoryId === category.id).length;
-                return (
-                  <button
-                    key={category.id}
-                    type="button"
-                    className={`secondary ${
-                      activeCategoryFilter === category.id ? "active-filter" : ""
-                    }`}
-                    onClick={() => setActiveCategoryFilter(category.id)}
-                  >
-                    {category.name} ({count})
-                  </button>
-                );
-              })}
-            </div>
-
-            {!categories.length ? (
-              <p className="merchant-admin-empty">
-                当前店铺没有分类，无法新增菜品。请先通过 API 或后台创建分类。
-              </p>
-            ) : null}
-
-            {!filteredItems.length ? (
-              <p className="merchant-admin-empty">暂无菜品</p>
-            ) : (
-              <div className="merchant-admin-table-wrap">
-                <table className="merchant-admin-table">
-                  <thead>
-                    <tr>
-                      <th>名称</th>
-                      <th>分类</th>
-                      <th>价格</th>
-                      <th>状态</th>
-                      <th>操作</th>
-                    </tr>
-                  </thead>
-                  <tbody>
-                    {filteredItems.map((item) => (
-                      <tr key={item.id}>
-                        <td>
-                          <div className="merchant-admin-item-name">{item.name}</div>
-                          <div className="merchant-admin-item-desc">{item.description}</div>
-                          {item.allergenCodes?.length ? (
-                            <div className="merchant-admin-item-tags">
-                              {item.allergenCodes.map((code) => (
-                                <span key={code}>{code}</span>
-                              ))}
-                            </div>
-                          ) : null}
-                        </td>
-                        <td>{categoryNameMap.get(item.categoryId) ?? item.categoryId.slice(0, 8)}</td>
-                        <td>{formatMoneyMinor(item.priceMinor, item.currencyCode)}</td>
-                        <td>
-                          <span>{item.isActive ? "启用" : "停用"}</span>
-                          <span className="dot">·</span>
-                          <span>{item.isAvailable ? "可售" : "下架"}</span>
-                        </td>
-                        <td>
-                          <div className="merchant-admin-table-actions">
-                            <button type="button" className="secondary" onClick={() => handleEdit(item)}>
-                              编辑
-                            </button>
-                            <button type="button" className="danger" onClick={() => handleDelete(item)}>
-                              删除
-                            </button>
-                          </div>
-                        </td>
+              {!categories.length ? (
+                <p className="merchant-admin-empty">暂无分类</p>
+              ) : (
+                <div className="merchant-admin-table-wrap">
+                  <table className="merchant-admin-table">
+                    <thead>
+                      <tr>
+                        <th>名称</th>
+                        <th>描述</th>
+                        <th>排序</th>
+                        <th>状态</th>
+                        <th>操作</th>
                       </tr>
+                    </thead>
+                    <tbody>
+                      {categories.map((category) => (
+                        <tr key={category.id}>
+                          <td>{category.name}</td>
+                          <td>{category.description || "-"}</td>
+                          <td>{category.sortOrder}</td>
+                          <td>{category.isActive ? "启用" : "停用"}</td>
+                          <td>
+                            <div className="merchant-admin-table-actions">
+                              <button
+                                type="button"
+                                className="secondary"
+                                onClick={() => handleEditCategory(category)}
+                              >
+                                编辑
+                              </button>
+                              <button
+                                type="button"
+                                className="danger"
+                                onClick={() => handleDeleteCategory(category)}
+                              >
+                                删除
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          </div>
+        ) : null}
+
+        {activeTab === "items" ? (
+          <div className="merchant-admin-grid">
+            <section className="merchant-admin-card">
+              <h2>{editingItemId ? "编辑菜品" : "新增菜品"}</h2>
+              <form onSubmit={handleSubmitItem} className="merchant-admin-form">
+                <label>
+                  分类
+                  <select
+                    value={itemForm.categoryId}
+                    onChange={(event) =>
+                      setItemForm((current) => ({ ...current, categoryId: event.target.value }))
+                    }
+                    required
+                  >
+                    <option value="">请选择分类</option>
+                    {categories.map((category) => (
+                      <option key={category.id} value={category.id}>
+                        {category.name}
+                      </option>
                     ))}
-                  </tbody>
-                </table>
+                  </select>
+                </label>
+
+                <label>
+                  菜品名称
+                  <input
+                    type="text"
+                    value={itemForm.name}
+                    onChange={(event) =>
+                      setItemForm((current) => ({ ...current, name: event.target.value }))
+                    }
+                    required
+                  />
+                </label>
+
+                <label>
+                  描述
+                  <textarea
+                    rows={3}
+                    value={itemForm.description}
+                    onChange={(event) =>
+                      setItemForm((current) => ({ ...current, description: event.target.value }))
+                    }
+                  />
+                </label>
+
+                <div className="merchant-admin-row">
+                  <label>
+                    价格
+                    <input
+                      type="number"
+                      min="0"
+                      step="0.01"
+                      value={itemForm.price}
+                      onChange={(event) =>
+                        setItemForm((current) => ({ ...current, price: event.target.value }))
+                      }
+                      required
+                    />
+                  </label>
+                  <label>
+                    货币
+                    <input
+                      type="text"
+                      maxLength={3}
+                      value={itemForm.currencyCode}
+                      onChange={(event) =>
+                        setItemForm((current) => ({ ...current, currencyCode: event.target.value }))
+                      }
+                      required
+                    />
+                  </label>
+                </div>
+
+                <div className="merchant-admin-row">
+                  <label>
+                    排序
+                    <input
+                      type="number"
+                      min="0"
+                      value={itemForm.sortOrder}
+                      onChange={(event) =>
+                        setItemForm((current) => ({ ...current, sortOrder: event.target.value }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    图片
+                    <input
+                      type="file"
+                      accept="image/png,image/jpeg,image/webp,image/gif"
+                      disabled={uploadLoading}
+                      onChange={(event) => handleImageUpload(event.target.files?.[0])}
+                    />
+                    <small className="merchant-admin-help">
+                      {uploadLoading ? "上传中..." : "支持 jpeg/png/webp/gif，最大 5MB"}
+                    </small>
+                  </label>
+                </div>
+
+                <label>
+                  图片 URL
+                  <input
+                    type="url"
+                    placeholder="https://..."
+                    value={itemForm.imageUrl}
+                    onChange={(event) =>
+                      setItemForm((current) => ({ ...current, imageUrl: event.target.value }))
+                    }
+                  />
+                </label>
+
+                {itemForm.imageUrl ? (
+                  <div className="merchant-admin-image-preview">
+                    <img src={itemForm.imageUrl} alt="preview" />
+                  </div>
+                ) : null}
+
+                <fieldset className="merchant-admin-allergen-fieldset">
+                  <legend>过敏源</legend>
+                  <div className="merchant-admin-allergen-grid">
+                    {allergenOptions.map((allergen) => {
+                      const checked = (itemForm.allergenCodes ?? []).includes(allergen.code);
+                      return (
+                        <label key={allergen.code} className="merchant-admin-allergen-option">
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => handleAllergenToggle(allergen.code)}
+                          />
+                          <span>{allergen.label}</span>
+                          <code>{allergen.code}</code>
+                        </label>
+                      );
+                    })}
+                  </div>
+                </fieldset>
+
+                <div className="merchant-admin-checkbox-row">
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={itemForm.isActive}
+                      onChange={(event) =>
+                        setItemForm((current) => ({ ...current, isActive: event.target.checked }))
+                      }
+                    />
+                    启用
+                  </label>
+                  <label>
+                    <input
+                      type="checkbox"
+                      checked={itemForm.isAvailable}
+                      onChange={(event) =>
+                        setItemForm((current) => ({ ...current, isAvailable: event.target.checked }))
+                      }
+                    />
+                    可售
+                  </label>
+                </div>
+
+                <div className="merchant-admin-form-actions">
+                  <button type="submit" disabled={submitLoading}>
+                    {submitLoading ? "保存中..." : editingItemId ? "保存修改" : "创建菜品"}
+                  </button>
+                  <button type="button" className="secondary" onClick={resetItemForm}>
+                    重置
+                  </button>
+                </div>
+              </form>
+            </section>
+
+            <section className="merchant-admin-card">
+              <div className="merchant-admin-table-header">
+                <h2>菜品列表</h2>
+                <div className="merchant-admin-table-header-actions">
+                  <input
+                    className="merchant-admin-search-input"
+                    type="search"
+                    placeholder="搜索菜品名称/描述/过敏源"
+                    value={searchKeyword}
+                    onChange={(event) => setSearchKeyword(event.target.value)}
+                  />
+                  <button type="button" className="secondary" onClick={loadData} disabled={loading}>
+                    {loading ? "刷新中..." : "刷新"}
+                  </button>
+                </div>
+              </div>
+
+              <div className="merchant-admin-category-filters">
+                <button
+                  type="button"
+                  className={activeCategoryFilter === "all" ? "secondary active-filter" : "secondary"}
+                  onClick={() => setActiveCategoryFilter("all")}
+                >
+                  全部 ({items.length})
+                </button>
+                {categories.map((category) => {
+                  const count = items.filter((item) => item.categoryId === category.id).length;
+                  return (
+                    <button
+                      key={category.id}
+                      type="button"
+                      className={activeCategoryFilter === category.id ? "secondary active-filter" : "secondary"}
+                      onClick={() => setActiveCategoryFilter(category.id)}
+                    >
+                      {category.name} ({count})
+                    </button>
+                  );
+                })}
+              </div>
+
+              {!filteredItems.length ? (
+                <p className="merchant-admin-empty">暂无菜品</p>
+              ) : (
+                <div className="merchant-admin-table-wrap">
+                  <table className="merchant-admin-table">
+                    <thead>
+                      <tr>
+                        <th>名称</th>
+                        <th>分类</th>
+                        <th>价格</th>
+                        <th>状态</th>
+                        <th>操作</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {filteredItems.map((item) => (
+                        <tr key={item.id}>
+                          <td>
+                            <div className="merchant-admin-item-name">{item.name}</div>
+                            <div className="merchant-admin-item-desc">{item.description}</div>
+                            {item.allergenCodes?.length ? (
+                              <div className="merchant-admin-item-tags">
+                                {item.allergenCodes.map((code) => (
+                                  <span key={code}>{code}</span>
+                                ))}
+                              </div>
+                            ) : null}
+                          </td>
+                          <td>{categoryNameMap.get(item.categoryId) ?? item.categoryId.slice(0, 8)}</td>
+                          <td>{formatMoneyMinor(item.priceMinor, item.currencyCode)}</td>
+                          <td>
+                            <span>{item.isActive ? "启用" : "停用"}</span>
+                            <span className="dot">·</span>
+                            <span>{item.isAvailable ? "可售" : "下架"}</span>
+                          </td>
+                          <td>
+                            <div className="merchant-admin-table-actions">
+                              <button type="button" className="secondary" onClick={() => handleEditItem(item)}>
+                                编辑
+                              </button>
+                              <button type="button" className="danger" onClick={() => handleDeleteItem(item)}>
+                                删除
+                              </button>
+                            </div>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </section>
+          </div>
+        ) : null}
+
+        {activeTab === "orders" ? (
+          <section className="merchant-admin-card">
+            <div className="merchant-admin-table-header">
+              <h2>订单列表</h2>
+              <button type="button" className="secondary" onClick={loadData} disabled={loading}>
+                {loading ? "刷新中..." : "刷新"}
+              </button>
+            </div>
+
+            {!orders.length ? (
+              <p className="merchant-admin-empty">暂无订单</p>
+            ) : (
+              <div className="merchant-admin-orders">
+                {orders.map((order) => (
+                  <article key={order.id} className="merchant-admin-order-card">
+                    <div className="merchant-admin-order-head">
+                      <div>
+                        <strong>桌号: {order.tableCode || "-"}</strong>
+                        <p>
+                          状态: {ORDER_STATUS_LABEL[order.status] ?? order.status} · 创建时间:{" "}
+                          {formatDatetime(order.createdAt)}
+                        </p>
+                      </div>
+                      <div className="merchant-admin-order-total">
+                        {formatMoneyMinor(order.totalMinor, order.currencyCode)}
+                      </div>
+                    </div>
+
+                    <ul className="merchant-admin-order-items">
+                      {(order.items ?? []).map((line) => (
+                        <li key={line.id}>
+                          <span>{line.itemName}</span>
+                          <span>
+                            x{line.quantity} · {formatMoneyMinor(line.priceMinor, line.currencyCode)}
+                          </span>
+                        </li>
+                      ))}
+                    </ul>
+
+                    <div className="merchant-admin-order-actions">
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={orderActionLoadingId === order.id}
+                        onClick={() => handleUpdateOrderStatus(order, "accepted")}
+                      >
+                        accept
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={orderActionLoadingId === order.id}
+                        onClick={() => handleUpdateOrderStatus(order, "preparing")}
+                      >
+                        prepare
+                      </button>
+                      <button
+                        type="button"
+                        className="secondary"
+                        disabled={orderActionLoadingId === order.id}
+                        onClick={() => handleUpdateOrderStatus(order, "ready")}
+                      >
+                        ready
+                      </button>
+                      <button
+                        type="button"
+                        className="danger"
+                        disabled={orderActionLoadingId === order.id}
+                        onClick={() => handleFinishOrder(order)}
+                      >
+                        finish
+                      </button>
+                    </div>
+                  </article>
+                ))}
               </div>
             )}
           </section>
-        </div>
+        ) : null}
       </div>
     </div>
   );
