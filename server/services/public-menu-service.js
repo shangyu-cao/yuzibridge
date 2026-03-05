@@ -1,4 +1,4 @@
-import { query } from "../db/pool.js";
+import { query, withTransaction } from "../db/pool.js";
 import { HttpError } from "../utils/http-error.js";
 
 export const getStoreLanguagesBySlug = async (storeSlug) => {
@@ -193,4 +193,114 @@ export const getPublicMenuBySlug = async ({ storeSlug, requestedLanguage }) => {
     fallbackLanguage: store.default_language_code,
     categories,
   };
+};
+
+export const createPublicOrderBySlug = async ({ storeSlug, tableCode, note, items }) => {
+  const orderResult = await withTransaction(async (client) => {
+    const storeResult = await client.query(
+      `
+        select id, slug, default_language_code, default_currency_code
+        from stores
+        where slug = $1 and is_active = true
+        limit 1
+      `,
+      [storeSlug],
+    );
+
+    if (storeResult.rowCount === 0) {
+      throw new HttpError(404, "Store not found");
+    }
+    const store = storeResult.rows[0];
+
+    const quantityByItemId = new Map();
+    for (const line of items) {
+      const current = quantityByItemId.get(line.menuItemId) ?? 0;
+      quantityByItemId.set(line.menuItemId, current + line.quantity);
+    }
+
+    const menuItemIds = Array.from(quantityByItemId.keys());
+    const menuItemsResult = await client.query(
+      `
+        select
+          i.id,
+          i.price_minor,
+          i.currency_code,
+          coalesce(it.name, 'Unnamed Item') as item_name
+        from menu_items i
+        left join menu_item_translations it
+          on it.item_id = i.id and it.language_code = $2
+        where i.store_id = $1
+          and i.is_active = true
+          and i.is_available = true
+          and i.id = any($3::uuid[])
+      `,
+      [store.id, store.default_language_code, menuItemIds],
+    );
+
+    const availableItemMap = new Map(menuItemsResult.rows.map((row) => [row.id, row]));
+    const missingItemIds = menuItemIds.filter((itemId) => !availableItemMap.has(itemId));
+    if (missingItemIds.length > 0) {
+      throw new HttpError(400, "Some items are unavailable", { missingItemIds });
+    }
+
+    const orderInsertResult = await client.query(
+      `
+        insert into orders (store_id, table_code, status, note)
+        values ($1, $2, 'new', $3)
+        returning id, store_id, table_code, status, created_at
+      `,
+      [store.id, tableCode || null, note || null],
+    );
+    const createdOrder = orderInsertResult.rows[0];
+
+    const orderItems = [];
+    for (const [menuItemId, quantity] of quantityByItemId.entries()) {
+      const menuItem = availableItemMap.get(menuItemId);
+      orderItems.push({
+        menuItemId,
+        itemNameSnapshot: menuItem.item_name,
+        priceMinor: menuItem.price_minor,
+        currencyCode: menuItem.currency_code || store.default_currency_code,
+        quantity,
+      });
+    }
+
+    let totalMinor = 0;
+    for (const line of orderItems) {
+      totalMinor += line.priceMinor * line.quantity;
+    }
+
+    for (const line of orderItems) {
+      await client.query(
+        `
+          insert into order_items
+            (order_id, menu_item_id, item_name_snapshot, price_minor, currency_code, quantity)
+          values
+            ($1, $2, $3, $4, $5, $6)
+        `,
+        [
+          createdOrder.id,
+          line.menuItemId,
+          line.itemNameSnapshot,
+          line.priceMinor,
+          line.currencyCode,
+          line.quantity,
+        ],
+      );
+    }
+
+    return {
+      orderId: createdOrder.id,
+      storeId: createdOrder.store_id,
+      storeSlug: store.slug,
+      tableCode: createdOrder.table_code,
+      status: createdOrder.status,
+      createdAt: createdOrder.created_at,
+      totalMinor,
+      currencyCode: orderItems[0]?.currencyCode ?? store.default_currency_code,
+      items: orderItems,
+    };
+  });
+
+  return orderResult;
 };

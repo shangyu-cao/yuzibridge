@@ -73,6 +73,7 @@ Public:
 
 - `GET /api/public/stores/:storeSlug/languages`
 - `GET /api/public/stores/:storeSlug/menu?lang=en-US`
+- `POST /api/public/stores/:storeSlug/orders`
 
 Admin:
 

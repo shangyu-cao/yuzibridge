@@ -65,6 +65,22 @@ Returns full menu payload for one store in target language with fallback already
 }
 ```
 
+### POST `/api/public/stores/:storeSlug/orders`
+
+Create order from menu page basket.
+
+Request:
+
+```json
+{
+  "tableCode": "A1",
+  "items": [
+    { "menuItemId": "uuid", "quantity": 2 },
+    { "menuItemId": "uuid", "quantity": 1 }
+  ]
+}
+```
+
 ---
 
 ## 2) Admin APIs

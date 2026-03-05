@@ -50,6 +50,24 @@ type PublicMenuResponse = {
   categories: PublicMenuCategory[];
 };
 
+type PublicCreateOrderResponse = {
+  orderId: string;
+  storeId: string;
+  storeSlug: string;
+  tableCode?: string | null;
+  status: string;
+  createdAt: string;
+  totalMinor: number;
+  currencyCode: string;
+  items: Array<{
+    menuItemId: string;
+    itemNameSnapshot: string;
+    priceMinor: number;
+    currencyCode: string;
+    quantity: number;
+  }>;
+};
+
 type MenuPageProps = {
   storeSlug: string;
 };
@@ -66,6 +84,10 @@ type UiCopy = {
   orderItemsLabel: string;
   orderEmptyText: string;
   orderConfirmText: string;
+  tableCodeLabel: string;
+  orderSubmittingText: string;
+  orderSubmittedText: string;
+  orderSubmitErrorText: string;
 };
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000").replace(/\/$/, "");
@@ -89,6 +111,10 @@ const UI_COPY: Record<string, UiCopy> = {
     orderItemsLabel: "份",
     orderEmptyText: "购物篮为空",
     orderConfirmText: "确定",
+    tableCodeLabel: "桌号",
+    orderSubmittingText: "提交中...",
+    orderSubmittedText: "下单成功，订单号：",
+    orderSubmitErrorText: "下单失败，请重试",
   },
   "en-US": {
     categoryTitle: "Categories",
@@ -102,6 +128,10 @@ const UI_COPY: Record<string, UiCopy> = {
     orderItemsLabel: "items",
     orderEmptyText: "Your basket is empty",
     orderConfirmText: "Confirm",
+    tableCodeLabel: "Table",
+    orderSubmittingText: "Submitting...",
+    orderSubmittedText: "Order submitted. Order ID: ",
+    orderSubmitErrorText: "Failed to submit order. Please retry.",
   },
   "ja-JP": {
     categoryTitle: "カテゴリ",
@@ -115,6 +145,10 @@ const UI_COPY: Record<string, UiCopy> = {
     orderItemsLabel: "点",
     orderEmptyText: "カートは空です",
     orderConfirmText: "確定",
+    tableCodeLabel: "テーブル",
+    orderSubmittingText: "送信中...",
+    orderSubmittedText: "注文が完了しました。注文ID: ",
+    orderSubmitErrorText: "注文に失敗しました。再試行してください。",
   },
 };
 
@@ -208,6 +242,34 @@ const fetchJson = async <T,>(path: string): Promise<T> => {
   return response.json();
 };
 
+const postJson = async <T,>(path: string, body: unknown): Promise<T> => {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify(body),
+  });
+
+  if (!response.ok) {
+    let message = `HTTP ${response.status}`;
+    try {
+      const payload = await response.json();
+      if (payload?.message) {
+        message = payload.message;
+      }
+    } catch {
+      const text = await response.text();
+      if (text) {
+        message = text;
+      }
+    }
+    throw new Error(message);
+  }
+
+  return response.json();
+};
+
 const toLanguageOptions = (payload: PublicLanguageResponse): LanguageOption[] => {
   if (!payload.languages.length) {
     return FALLBACK_LANGUAGES;
@@ -242,6 +304,10 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
   const [activeCategoryId, setActiveCategoryId] = useState<string>("");
   const [basketQuantities, setBasketQuantities] = useState<Record<string, number>>({});
   const [isOrderExpanded, setIsOrderExpanded] = useState<boolean>(false);
+  const [tableCode, setTableCode] = useState<string>("");
+  const [orderSubmitting, setOrderSubmitting] = useState<boolean>(false);
+  const [orderSubmitMessage, setOrderSubmitMessage] = useState<string>("");
+  const [orderSubmitError, setOrderSubmitError] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [usingFallback, setUsingFallback] = useState<boolean>(false);
@@ -285,6 +351,10 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
   useEffect(() => {
     setBasketQuantities({});
     setIsOrderExpanded(false);
+    setOrderSubmitMessage("");
+    setOrderSubmitError("");
+    const queryTable = new URLSearchParams(window.location.search).get("table");
+    setTableCode(queryTable ?? "");
   }, [storeSlug]);
 
   useEffect(() => {
@@ -445,12 +515,38 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
     });
   };
 
-  const handleConfirmOrder = () => {
-    const query = new URLSearchParams({
-      store: storeSlug,
-      lang: selectedLanguage,
-    });
-    window.location.assign(`/order-confirm?${query.toString()}`);
+  const handleConfirmOrder = async () => {
+    if (!basketLineItems.length || orderSubmitting) {
+      return;
+    }
+
+    setOrderSubmitting(true);
+    setOrderSubmitError("");
+    setOrderSubmitMessage("");
+
+    try {
+      const payload = {
+        tableCode: tableCode.trim() || null,
+        items: basketLineItems.map((line) => ({
+          menuItemId: line.id,
+          quantity: line.quantity,
+        })),
+      };
+
+      const response = await postJson<PublicCreateOrderResponse>(
+        `/api/public/stores/${encodeURIComponent(storeSlug)}/orders`,
+        payload,
+      );
+
+      setOrderSubmitMessage(`${uiCopy.orderSubmittedText}${response.orderId}`);
+      window.alert(`${uiCopy.orderSubmittedText}${response.orderId}`);
+      setBasketQuantities({});
+      setIsOrderExpanded(false);
+    } catch (_error) {
+      setOrderSubmitError(uiCopy.orderSubmitErrorText);
+    } finally {
+      setOrderSubmitting(false);
+    }
   };
 
   const storeName = menuPayload?.store.name ?? storeSlug;
@@ -550,6 +646,22 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
 
           {isOrderExpanded ? (
             <div className="order-drawer__panel">
+              <div className="order-drawer__table-row">
+                <label htmlFor="order-table-code">{uiCopy.tableCodeLabel}</label>
+                <input
+                  id="order-table-code"
+                  type="text"
+                  value={tableCode}
+                  onChange={(event) => setTableCode(event.target.value)}
+                  placeholder="A1"
+                />
+              </div>
+
+              {orderSubmitError ? <p className="order-drawer__message error">{orderSubmitError}</p> : null}
+              {orderSubmitMessage ? (
+                <p className="order-drawer__message success">{orderSubmitMessage}</p>
+              ) : null}
+
               <ul className="order-drawer__items">
                 {basketLineItems.length ? (
                   basketLineItems.map((item) => (
@@ -588,9 +700,10 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
               <button
                 type="button"
                 className="order-drawer__confirm-button"
+                disabled={orderSubmitting}
                 onClick={handleConfirmOrder}
               >
-                {uiCopy.orderConfirmText}
+                {orderSubmitting ? uiCopy.orderSubmittingText : uiCopy.orderConfirmText}
               </button>
             </div>
           ) : null}
