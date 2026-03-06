@@ -252,6 +252,19 @@
   gap: 8px;
 }
 
+.merchant-admin-account-password-box {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px;
+  background: #fafafa;
+}
+
+.merchant-admin-account-password-box h3 {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  color: #374151;
+}
+
 .merchant-admin-table-header {
   display: flex;
   align-items: center;

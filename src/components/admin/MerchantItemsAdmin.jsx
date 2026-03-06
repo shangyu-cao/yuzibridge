@@ -54,6 +54,16 @@ const EMPTY_STORE_FORM = {
   contactEmail: "",
 };
 
+const EMPTY_ACCOUNT_FORM = {
+  displayName: "",
+  email: "",
+  createdAt: "",
+  lastLoginAt: "",
+  currentPassword: "",
+  newPassword: "",
+  confirmNewPassword: "",
+};
+
 const parseStoredJson = (value, fallback) => {
   if (!value) return fallback;
   try {
@@ -132,6 +142,16 @@ const normalizeStoreForm = (store) => ({
   contactEmail: store?.contactEmail ?? "",
 });
 
+const normalizeAccountForm = (user, accountMeta) => ({
+  displayName: user?.displayName ?? "",
+  email: user?.email ?? "",
+  createdAt: accountMeta?.createdAt ?? "",
+  lastLoginAt: accountMeta?.lastLoginAt ?? "",
+  currentPassword: "",
+  newPassword: "",
+  confirmNewPassword: "",
+});
+
 const MerchantItemsAdmin = () => {
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || "");
   const [user, setUser] = useState(() => parseStoredJson(localStorage.getItem(USER_KEY), null));
@@ -165,6 +185,7 @@ const MerchantItemsAdmin = () => {
   const [loginLoading, setLoginLoading] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
   const [storeSubmitLoading, setStoreSubmitLoading] = useState(false);
+  const [accountSubmitLoading, setAccountSubmitLoading] = useState(false);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [orderActionLoadingId, setOrderActionLoadingId] = useState("");
 
@@ -177,6 +198,7 @@ const MerchantItemsAdmin = () => {
   const [editingCategoryId, setEditingCategoryId] = useState(null);
   const [categoryForm, setCategoryForm] = useState(EMPTY_CATEGORY_FORM);
   const [storeForm, setStoreForm] = useState(EMPTY_STORE_FORM);
+  const [accountForm, setAccountForm] = useState(() => normalizeAccountForm(user, null));
 
   const categoryNameMap = useMemo(
     () => new Map(categories.map((category) => [category.id, category.name])),
@@ -270,7 +292,8 @@ const MerchantItemsAdmin = () => {
     setErrorMessage("");
 
     try {
-      const [storeResp, categoryResp, itemResp, allergenResp, orderResp] = await Promise.all([
+      const [accountResp, storeResp, categoryResp, itemResp, allergenResp, orderResp] = await Promise.all([
+        fetchWithAuth("/api/admin/auth/me"),
         fetchWithAuth(`/api/admin/stores/${selectedStoreId}/profile`),
         fetchWithAuth(`/api/admin/stores/${selectedStoreId}/categories`),
         fetchWithAuth(`/api/admin/stores/${selectedStoreId}/items`),
@@ -278,6 +301,15 @@ const MerchantItemsAdmin = () => {
         fetchWithAuth(`/api/admin/stores/${selectedStoreId}/orders`),
       ]);
 
+      if (accountResp?.user) {
+        setUser(accountResp.user);
+        localStorage.setItem(USER_KEY, JSON.stringify(accountResp.user));
+      }
+      if (Array.isArray(accountResp?.memberships)) {
+        setMemberships(accountResp.memberships);
+        localStorage.setItem(MEMBERSHIPS_KEY, JSON.stringify(accountResp.memberships));
+      }
+      setAccountForm(normalizeAccountForm(accountResp?.user, accountResp?.accountMeta));
       setStoreForm(normalizeStoreForm(storeResp));
       setCategories(categoryResp?.categories ?? []);
       setItems(itemResp?.items ?? []);
@@ -313,6 +345,14 @@ const MerchantItemsAdmin = () => {
     const exists = categories.some((category) => category.id === activeCategoryFilter);
     if (!exists) setActiveCategoryFilter("all");
   }, [activeCategoryFilter, categories]);
+
+  useEffect(() => {
+    setAccountForm((current) => ({
+      ...current,
+      displayName: current.displayName || user?.displayName || "",
+      email: current.email || user?.email || "",
+    }));
+  }, [user]);
 
   const resetItemForm = () => {
     setEditingItemId(null);
@@ -352,6 +392,7 @@ const MerchantItemsAdmin = () => {
       setUser(payload.user);
       setMemberships(payload.memberships ?? []);
       setSelectedStoreId(nextStoreId);
+      setAccountForm(normalizeAccountForm(payload.user, null));
 
       localStorage.setItem(TOKEN_KEY, payload.token);
       localStorage.setItem(USER_KEY, JSON.stringify(payload.user));
@@ -375,6 +416,7 @@ const MerchantItemsAdmin = () => {
     setItems([]);
     setOrders([]);
     setStoreForm(EMPTY_STORE_FORM);
+    setAccountForm(EMPTY_ACCOUNT_FORM);
     clearCategoryDragState();
     clearItemDragState();
     resetItemForm();
@@ -397,6 +439,12 @@ const MerchantItemsAdmin = () => {
     setItemStatusFilter("all");
     setPriceSort("none");
     setStoreForm(EMPTY_STORE_FORM);
+    setAccountForm((current) => ({
+      ...current,
+      currentPassword: "",
+      newPassword: "",
+      confirmNewPassword: "",
+    }));
     clearCategoryDragState();
     clearItemDragState();
   };
@@ -828,6 +876,88 @@ const MerchantItemsAdmin = () => {
     }
   };
 
+  const handleSubmitAccount = async (event) => {
+    event.preventDefault();
+    setAccountSubmitLoading(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+    try {
+      const displayName = accountForm.displayName.trim();
+      const accountEmail = accountForm.email.trim();
+      const currentPassword = accountForm.currentPassword.trim();
+      const newPassword = accountForm.newPassword.trim();
+      const confirmNewPassword = accountForm.confirmNewPassword.trim();
+
+      if (!displayName) {
+        throw new Error("账户名不能为空");
+      }
+      if (!accountEmail) {
+        throw new Error("邮箱不能为空");
+      }
+      if (newPassword || confirmNewPassword) {
+        if (newPassword.length < 8) {
+          throw new Error("新密码至少 8 位");
+        }
+        if (newPassword !== confirmNewPassword) {
+          throw new Error("两次输入的新密码不一致");
+        }
+        if (!currentPassword) {
+          throw new Error("修改密码时需要填写当前密码");
+        }
+      }
+
+      const payload = {
+        displayName,
+        email: accountEmail,
+        ...(newPassword
+          ? {
+              currentPassword,
+              newPassword,
+            }
+          : {}),
+      };
+
+      const response = await fetchWithAuth("/api/admin/auth/me", {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+
+      setToken(response.token);
+      setUser(response.user);
+      setMemberships(response.memberships ?? []);
+      localStorage.setItem(TOKEN_KEY, response.token);
+      localStorage.setItem(USER_KEY, JSON.stringify(response.user));
+      localStorage.setItem(MEMBERSHIPS_KEY, JSON.stringify(response.memberships ?? []));
+
+      const hasSelectedStore = (response.memberships ?? []).some(
+        (membership) => membership.store_id === selectedStoreId,
+      );
+      if (!hasSelectedStore) {
+        const fallbackStoreId = response.memberships?.[0]?.store_id ?? "";
+        setSelectedStoreId(fallbackStoreId);
+        localStorage.setItem(STORE_KEY, fallbackStoreId);
+      }
+
+      setAccountForm((current) => ({
+        ...current,
+        displayName: response.user?.displayName ?? current.displayName,
+        email: response.user?.email ?? current.email,
+        currentPassword: "",
+        newPassword: "",
+        confirmNewPassword: "",
+      }));
+
+      setSuccessMessage("账户信息已更新");
+      showToast("success", "账户信息已更新");
+      await loadData();
+    } catch (error) {
+      setErrorMessage(error.message || "保存账户信息失败");
+      showToast("error", error.message || "保存账户信息失败");
+    } finally {
+      setAccountSubmitLoading(false);
+    }
+  };
+
   const handleUpdateOrderStatus = async (order, status) => {
     setOrderActionLoadingId(order.id);
     setErrorMessage("");
@@ -910,7 +1040,10 @@ const MerchantItemsAdmin = () => {
         <header className="merchant-admin-header">
           <div>
             <h1>商家后台管理</h1>
-            <p>{user?.email ?? ""}</p>
+            <p>
+              {user?.displayName ? `${user.displayName} · ` : ""}
+              {user?.email ?? ""}
+            </p>
           </div>
 
           <div className="merchant-admin-header-actions">
@@ -932,6 +1065,13 @@ const MerchantItemsAdmin = () => {
         </header>
 
         <div className="merchant-admin-tabs">
+          <button
+            type="button"
+            className={activeTab === "account" ? "secondary active-filter" : "secondary"}
+            onClick={() => setActiveTab("account")}
+          >
+            账户管理
+          </button>
           <button
             type="button"
             className={activeTab === "store" ? "secondary active-filter" : "secondary"}
@@ -964,6 +1104,105 @@ const MerchantItemsAdmin = () => {
 
         {errorMessage ? <p className="merchant-admin-error">{errorMessage}</p> : null}
         {successMessage ? <p className="merchant-admin-success">{successMessage}</p> : null}
+
+        {activeTab === "account" ? (
+          <section className="merchant-admin-card">
+            <div className="merchant-admin-table-header">
+              <h2>账户资料</h2>
+              <button type="button" className="secondary" onClick={loadData} disabled={loading}>
+                {loading ? "刷新中..." : "刷新"}
+              </button>
+            </div>
+            <form onSubmit={handleSubmitAccount} className="merchant-admin-form">
+              <label>
+                账户名
+                <input
+                  type="text"
+                  value={accountForm.displayName}
+                  onChange={(event) =>
+                    setAccountForm((current) => ({ ...current, displayName: event.target.value }))
+                  }
+                  required
+                />
+              </label>
+
+              <label>
+                邮箱（登录账号）
+                <input
+                  type="email"
+                  value={accountForm.email}
+                  onChange={(event) =>
+                    setAccountForm((current) => ({ ...current, email: event.target.value }))
+                  }
+                  required
+                />
+              </label>
+
+              <div className="merchant-admin-row">
+                <label>
+                  注册时间
+                  <input type="text" value={formatDatetime(accountForm.createdAt)} readOnly />
+                </label>
+                <label>
+                  最近登录
+                  <input type="text" value={formatDatetime(accountForm.lastLoginAt)} readOnly />
+                </label>
+              </div>
+
+              <div className="merchant-admin-account-password-box">
+                <h3>修改密码（可选）</h3>
+                <div className="merchant-admin-row">
+                  <label>
+                    当前密码
+                    <input
+                      type="password"
+                      value={accountForm.currentPassword}
+                      onChange={(event) =>
+                        setAccountForm((current) => ({
+                          ...current,
+                          currentPassword: event.target.value,
+                        }))
+                      }
+                    />
+                  </label>
+                  <label>
+                    新密码
+                    <input
+                      type="password"
+                      value={accountForm.newPassword}
+                      onChange={(event) =>
+                        setAccountForm((current) => ({
+                          ...current,
+                          newPassword: event.target.value,
+                        }))
+                      }
+                      placeholder="至少 8 位"
+                    />
+                  </label>
+                </div>
+                <label>
+                  确认新密码
+                  <input
+                    type="password"
+                    value={accountForm.confirmNewPassword}
+                    onChange={(event) =>
+                      setAccountForm((current) => ({
+                        ...current,
+                        confirmNewPassword: event.target.value,
+                      }))
+                    }
+                  />
+                </label>
+              </div>
+
+              <div className="merchant-admin-form-actions">
+                <button type="submit" disabled={accountSubmitLoading}>
+                  {accountSubmitLoading ? "保存中..." : "保存账户信息"}
+                </button>
+              </div>
+            </form>
+          </section>
+        ) : null}
 
         {activeTab === "store" ? (
           <section className="merchant-admin-card">
