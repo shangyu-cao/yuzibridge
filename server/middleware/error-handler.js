@@ -49,6 +49,12 @@ export const errorHandler = (error, req, res, next) => {
     });
   }
 
+  if (error?.message === "DATABASE_URL is not configured.") {
+    return res.status(500).json({
+      message: "Server database is not configured. Set DATABASE_URL in deployment environment.",
+    });
+  }
+
   console.error("[api:error]", error);
   return res.status(500).json({
     message: "Internal server error",
