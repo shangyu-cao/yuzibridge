@@ -1,4 +1,8 @@
 import express from "express";
+import fs from "node:fs";
+import path from "node:path";
+import { randomUUID } from "node:crypto";
+import multer from "multer";
 import { z } from "zod";
 import { query, withTransaction } from "../db/pool.js";
 import { authenticateAdmin, requireStoreRole } from "../middleware/auth.js";
@@ -8,6 +12,34 @@ import { ensureCategoryBelongsStore, getActiveStoreForAdmin } from "../services/
 
 const router = express.Router();
 router.use(authenticateAdmin);
+
+const uploadsDirectory = path.resolve(process.cwd(), "server", "uploads");
+if (!fs.existsSync(uploadsDirectory)) {
+  fs.mkdirSync(uploadsDirectory, { recursive: true });
+}
+
+const allowedImageMimeTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
+
+const imageUpload = multer({
+  storage: multer.diskStorage({
+    destination: (_req, _file, callback) => callback(null, uploadsDirectory),
+    filename: (_req, file, callback) => {
+      const extension = path.extname(file.originalname || "").toLowerCase();
+      const safeExtension = extension && extension.length <= 10 ? extension : ".jpg";
+      callback(null, `${Date.now()}-${randomUUID()}${safeExtension}`);
+    },
+  }),
+  limits: {
+    fileSize: 5 * 1024 * 1024,
+  },
+  fileFilter: (_req, file, callback) => {
+    if (!allowedImageMimeTypes.has(file.mimetype)) {
+      callback(new HttpError(400, "Unsupported image type. Use jpeg/png/webp/gif."));
+      return;
+    }
+    callback(null, true);
+  },
+});
 
 const readOnlyRoles = ["owner", "manager", "editor", "viewer"];
 const editRoles = ["owner", "manager", "editor"];
@@ -27,9 +59,26 @@ const itemParamsSchema = z.object({
   itemId: z.string().uuid(),
 });
 
+const orderParamsSchema = z.object({
+  storeId: z.string().uuid(),
+  orderId: z.string().uuid(),
+});
+
 const languageQuerySchema = z.object({
   lang: z.string().min(2).max(10).optional(),
 });
+
+const orderedAllergenCodes = [
+  "milk",
+  "eggs",
+  "peanuts",
+  "tree_nuts",
+  "gluten",
+  "soy",
+  "fish",
+  "shellfish",
+  "sesame",
+];
 
 const createCategorySchema = z.object({
   name: z.string().trim().min(1).max(120),
@@ -71,6 +120,18 @@ const updateItemSchema = z.object({
   isAvailable: z.boolean().optional(),
   languageCode: z.string().min(2).max(10).optional(),
   allergenCodes: z.array(z.string().trim().min(1).max(100)).max(40).optional(),
+});
+
+const updateStoreProfileSchema = z.object({
+  brandName: z.string().trim().min(1).max(160).optional(),
+  logoUrl: z.string().url().nullable().optional(),
+  addressText: z.string().trim().max(2000).nullable().optional(),
+  contactPhone: z.string().trim().max(120).nullable().optional(),
+  contactEmail: z.string().trim().email().max(320).nullable().optional(),
+});
+
+const updateOrderStatusSchema = z.object({
+  status: z.enum(["accepted", "preparing", "ready"]),
 });
 
 const normalizeAllergenCodes = (codes = []) => {
@@ -203,6 +264,171 @@ const loadAdminItem = async ({ dbClient, storeId, itemId, languageCode, defaultL
     languageCode,
   };
 };
+
+const toAdminStoreProfile = (store) => ({
+  id: store.id,
+  slug: store.slug,
+  legalName: store.legal_name,
+  brandName: store.brand_name,
+  logoUrl: store.logo_url,
+  defaultLanguageCode: store.default_language_code,
+  defaultCurrencyCode: store.default_currency_code,
+  addressText: store.address_text,
+  contactPhone: store.contact_phone,
+  contactEmail: store.contact_email,
+});
+
+router.get(
+  "/stores/:storeId/profile",
+  requireStoreRole(readOnlyRoles),
+  asyncHandler(async (req, res) => {
+    const { storeId } = storeParamsSchema.parse(req.params);
+    const store = await getActiveStoreForAdmin({ query }, storeId);
+    res.json(toAdminStoreProfile(store));
+  }),
+);
+
+router.put(
+  "/stores/:storeId/profile",
+  requireStoreRole(editRoles),
+  asyncHandler(async (req, res) => {
+    const { storeId } = storeParamsSchema.parse(req.params);
+    const payload = updateStoreProfileSchema.parse(req.body);
+
+    const hasUpdate =
+      payload.brandName !== undefined ||
+      payload.logoUrl !== undefined ||
+      payload.addressText !== undefined ||
+      payload.contactPhone !== undefined ||
+      payload.contactEmail !== undefined;
+
+    if (!hasUpdate) {
+      throw new HttpError(400, "No update fields provided");
+    }
+
+    await getActiveStoreForAdmin({ query }, storeId);
+
+    const updateFragments = [];
+    const updateValues = [];
+    const appendUpdate = (column, value) => {
+      updateValues.push(value);
+      updateFragments.push(`${column} = $${updateValues.length}`);
+    };
+
+    if (payload.brandName !== undefined) appendUpdate("brand_name", payload.brandName);
+    if (payload.logoUrl !== undefined) appendUpdate("logo_url", payload.logoUrl);
+    if (payload.addressText !== undefined) appendUpdate("address_text", payload.addressText);
+    if (payload.contactPhone !== undefined) appendUpdate("contact_phone", payload.contactPhone);
+    if (payload.contactEmail !== undefined) appendUpdate("contact_email", payload.contactEmail);
+
+    updateValues.push(storeId);
+    const updatedStoreResult = await query(
+      `
+        update stores
+        set ${updateFragments.join(", ")}
+        where id = $${updateValues.length}
+        returning
+          id,
+          slug,
+          legal_name,
+          brand_name,
+          logo_url,
+          default_language_code,
+          default_currency_code,
+          address_text,
+          contact_phone,
+          contact_email
+      `,
+      updateValues,
+    );
+
+    if (updatedStoreResult.rowCount === 0) {
+      throw new HttpError(404, "Store not found");
+    }
+
+    res.json(toAdminStoreProfile(updatedStoreResult.rows[0]));
+  }),
+);
+
+router.get(
+  "/stores/:storeId/allergens",
+  requireStoreRole(readOnlyRoles),
+  asyncHandler(async (req, res) => {
+    const { storeId } = storeParamsSchema.parse(req.params);
+    const { lang } = languageQuerySchema.parse(req.query);
+
+    const store = await getActiveStoreForAdmin({ query }, storeId);
+    const languageCode = lang ?? store.default_language_code;
+
+    const allergenResult = await query(
+      `
+        select
+          a.code,
+          coalesce(at_req.label, at_def.label, a.code) as label
+        from allergens a
+        left join allergen_translations at_req
+          on at_req.allergen_id = a.id and at_req.language_code = $1
+        left join allergen_translations at_def
+          on at_def.allergen_id = a.id and at_def.language_code = $2
+        order by
+          case a.code
+            when 'milk' then 1
+            when 'eggs' then 2
+            when 'peanuts' then 3
+            when 'tree_nuts' then 4
+            when 'gluten' then 5
+            when 'soy' then 6
+            when 'fish' then 7
+            when 'shellfish' then 8
+            when 'sesame' then 9
+            else 999
+          end,
+          a.code
+      `,
+      [languageCode, store.default_language_code],
+    );
+
+    const rowsByCode = new Map(allergenResult.rows.map((row) => [row.code, row]));
+    const mergedRows = [
+      ...orderedAllergenCodes.map((code) => rowsByCode.get(code)).filter(Boolean),
+      ...allergenResult.rows.filter((row) => !orderedAllergenCodes.includes(row.code)),
+    ];
+
+    res.json({
+      languageCode,
+      allergens: mergedRows.map((row) => ({
+        code: row.code,
+        label: row.label,
+      })),
+    });
+  }),
+);
+
+router.post(
+  "/stores/:storeId/uploads/image",
+  requireStoreRole(editRoles),
+  imageUpload.single("file"),
+  asyncHandler(async (req, res) => {
+    const { storeId } = storeParamsSchema.parse(req.params);
+    await getActiveStoreForAdmin({ query }, storeId);
+
+    if (!req.file) {
+      throw new HttpError(400, "Image file is required.");
+    }
+
+    const imagePath = `/uploads/${req.file.filename}`;
+    const host = req.get("host");
+    const imageUrl = `${req.protocol}://${host}${imagePath}`;
+
+    res.status(201).json({
+      imageUrl,
+      imagePath,
+      fileName: req.file.filename,
+      mimeType: req.file.mimetype,
+      size: req.file.size,
+    });
+  }),
+);
 
 router.get(
   "/stores/:storeId/categories",
@@ -715,6 +941,122 @@ router.delete(
 
     if (deleteResult.rowCount === 0) {
       throw new HttpError(404, "Item not found");
+    }
+
+    res.status(204).send();
+  }),
+);
+
+router.get(
+  "/stores/:storeId/orders",
+  requireStoreRole(readOnlyRoles),
+  asyncHandler(async (req, res) => {
+    const { storeId } = storeParamsSchema.parse(req.params);
+    await getActiveStoreForAdmin({ query }, storeId);
+
+    const ordersResult = await query(
+      `
+        select
+          o.id,
+          o.store_id,
+          o.table_code,
+          o.status,
+          o.created_at,
+          o.updated_at,
+          coalesce(sum(oi.price_minor * oi.quantity), 0) as total_minor,
+          coalesce(max(oi.currency_code), 'CNY') as currency_code,
+          coalesce(
+            json_agg(
+              json_build_object(
+                'id', oi.id,
+                'menuItemId', oi.menu_item_id,
+                'itemName', oi.item_name_snapshot,
+                'priceMinor', oi.price_minor,
+                'currencyCode', oi.currency_code,
+                'quantity', oi.quantity
+              )
+              order by oi.id
+            ) filter (where oi.id is not null),
+            '[]'::json
+          ) as items
+        from orders o
+        left join order_items oi on oi.order_id = o.id
+        where o.store_id = $1
+        group by o.id, o.store_id, o.table_code, o.status, o.created_at, o.updated_at
+        order by o.created_at desc
+      `,
+      [storeId],
+    );
+
+    res.json({
+      storeId,
+      orders: ordersResult.rows.map((row) => ({
+        id: row.id,
+        storeId: row.store_id,
+        tableCode: row.table_code,
+        status: row.status,
+        createdAt: row.created_at,
+        updatedAt: row.updated_at,
+        totalMinor: Number(row.total_minor ?? 0),
+        currencyCode: row.currency_code,
+        items: row.items ?? [],
+      })),
+    });
+  }),
+);
+
+router.patch(
+  "/stores/:storeId/orders/:orderId/status",
+  requireStoreRole(editRoles),
+  asyncHandler(async (req, res) => {
+    const { storeId, orderId } = orderParamsSchema.parse(req.params);
+    const payload = updateOrderStatusSchema.parse(req.body);
+    await getActiveStoreForAdmin({ query }, storeId);
+
+    const updateResult = await query(
+      `
+        update orders
+        set status = $3, updated_at = now()
+        where id = $1 and store_id = $2
+        returning id, store_id, table_code, status, created_at, updated_at
+      `,
+      [orderId, storeId, payload.status],
+    );
+
+    if (updateResult.rowCount === 0) {
+      throw new HttpError(404, "Order not found");
+    }
+
+    res.json({
+      order: {
+        id: updateResult.rows[0].id,
+        storeId: updateResult.rows[0].store_id,
+        tableCode: updateResult.rows[0].table_code,
+        status: updateResult.rows[0].status,
+        createdAt: updateResult.rows[0].created_at,
+        updatedAt: updateResult.rows[0].updated_at,
+      },
+    });
+  }),
+);
+
+router.delete(
+  "/stores/:storeId/orders/:orderId",
+  requireStoreRole(editRoles),
+  asyncHandler(async (req, res) => {
+    const { storeId, orderId } = orderParamsSchema.parse(req.params);
+    await getActiveStoreForAdmin({ query }, storeId);
+
+    const deleteResult = await query(
+      `
+        delete from orders
+        where id = $1 and store_id = $2
+      `,
+      [orderId, storeId],
+    );
+
+    if (deleteResult.rowCount === 0) {
+      throw new HttpError(404, "Order not found");
     }
 
     res.status(204).send();

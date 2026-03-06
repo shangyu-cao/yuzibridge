@@ -65,6 +65,22 @@ Returns full menu payload for one store in target language with fallback already
 }
 ```
 
+### POST `/api/public/stores/:storeSlug/orders`
+
+Create order from menu page basket.
+
+Request:
+
+```json
+{
+  "tableCode": "A1",
+  "items": [
+    { "menuItemId": "uuid", "quantity": 2 },
+    { "menuItemId": "uuid", "quantity": 1 }
+  ]
+}
+```
+
 ---
 
 ## 2) Admin APIs
@@ -82,6 +98,20 @@ Returns full menu payload for one store in target language with fallback already
 - `PUT /api/admin/stores/:storeId/items/:itemId`
 - `DELETE /api/admin/stores/:storeId/items/:itemId`
 - `GET /api/admin/stores/:storeId/items`
+
+### Item image upload
+
+- `POST /api/admin/stores/:storeId/uploads/image` (multipart `file`)
+
+### Allergen options
+
+- `GET /api/admin/stores/:storeId/allergens`
+
+### Orders
+
+- `GET /api/admin/stores/:storeId/orders`
+- `PATCH /api/admin/stores/:storeId/orders/:orderId/status` (`accepted|preparing|ready`)
+- `DELETE /api/admin/stores/:storeId/orders/:orderId` (for finish confirmation delete)
 
 ### Store settings
 

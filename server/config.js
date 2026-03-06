@@ -14,4 +14,5 @@ export const config = {
   jwtSecret: process.env.JWT_SECRET ?? "replace-this-in-production",
   jwtExpiresIn: process.env.JWT_EXPIRES_IN ?? "12h",
   corsOrigin: process.env.CORS_ORIGIN ?? "*",
+  googleTranslateApiKey: process.env.GOOGLE_TRANSLATE_API_KEY ?? "",
 };

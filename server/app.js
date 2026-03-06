@@ -1,5 +1,7 @@
 import cors from "cors";
 import express from "express";
+import fs from "node:fs";
+import path from "node:path";
 import { config } from "./config.js";
 import { hasDatabase, pingDatabase } from "./db/pool.js";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
@@ -9,6 +11,11 @@ import { publicRouter } from "./routes/public.js";
 import { asyncHandler } from "./utils/async-handler.js";
 
 const app = express();
+const uploadsDirectory = path.resolve(process.cwd(), "server", "uploads");
+
+if (!fs.existsSync(uploadsDirectory)) {
+  fs.mkdirSync(uploadsDirectory, { recursive: true });
+}
 
 app.use(
   cors({
@@ -17,6 +24,7 @@ app.use(
   }),
 );
 app.use(express.json({ limit: "1mb" }));
+app.use("/uploads", express.static(uploadsDirectory));
 
 app.get(
   "/api/health",

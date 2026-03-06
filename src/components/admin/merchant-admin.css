@@ -1,0 +1,786 @@
+.merchant-admin-page {
+  min-height: 100vh;
+  background: #f3f4f6;
+  color: #111827;
+  padding: 18px;
+}
+
+.merchant-admin-shell {
+  max-width: 1280px;
+  margin: 0 auto;
+}
+
+.merchant-admin-login-card {
+  max-width: 460px;
+  margin: 10vh auto 0;
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 20px;
+}
+
+.merchant-admin-login-card h1,
+.merchant-admin-header h1 {
+  margin: 0 0 6px;
+  font-size: 1.4rem;
+}
+
+.merchant-admin-login-card p,
+.merchant-admin-header p {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.92rem;
+}
+
+.merchant-admin-header {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 14px 16px;
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 14px;
+}
+
+.merchant-admin-header-actions {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+}
+
+.merchant-admin-inline-label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.78rem;
+  color: #4b5563;
+}
+
+.merchant-admin-grid {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: 420px 1fr;
+  gap: 14px;
+}
+
+.merchant-admin-tabs {
+  margin-top: 12px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.merchant-admin-card {
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.merchant-admin-card h2 {
+  margin: 0 0 12px;
+  font-size: 1.06rem;
+}
+
+.merchant-admin-form {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.merchant-admin-form label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.84rem;
+  color: #374151;
+}
+
+.merchant-admin-form input,
+.merchant-admin-form select,
+.merchant-admin-form textarea,
+.merchant-admin-inline-label select {
+  border: 1px solid #d1d5db;
+  border-radius: 8px;
+  padding: 8px 10px;
+  background: #fff;
+  color: #111827;
+}
+
+.merchant-admin-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+  gap: 10px;
+}
+
+.merchant-admin-help {
+  color: #6b7280;
+  font-size: 0.76rem;
+}
+
+.merchant-admin-image-preview {
+  border: 1px dashed #d1d5db;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.merchant-admin-image-preview img {
+  max-width: 100%;
+  max-height: 180px;
+  object-fit: cover;
+  border-radius: 6px;
+}
+
+.merchant-admin-image-preview.store-logo-preview {
+  width: min(240px, 100%);
+}
+
+.merchant-admin-allergen-fieldset {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 8px 10px 10px;
+}
+
+.merchant-admin-allergen-fieldset legend {
+  font-size: 0.82rem;
+  color: #374151;
+  padding: 0 4px;
+}
+
+.merchant-admin-allergen-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+
+.merchant-admin-allergen-option {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  gap: 6px;
+  font-size: 0.8rem !important;
+  border: 1px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 6px 8px;
+}
+
+.merchant-admin-checkbox-row {
+  display: flex;
+  gap: 18px;
+}
+
+.merchant-admin-checkbox-row label {
+  display: flex;
+  flex-direction: row;
+  align-items: center;
+  gap: 8px;
+}
+
+.merchant-admin-switch-row {
+  display: flex !important;
+  flex-direction: row !important;
+  align-items: center;
+  justify-content: space-between;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 8px 10px;
+  min-width: 120px;
+}
+
+.merchant-admin-switch {
+  position: relative;
+  display: inline-flex;
+}
+
+.merchant-admin-switch input {
+  opacity: 0;
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  cursor: pointer;
+}
+
+.merchant-admin-switch > span {
+  width: 40px;
+  height: 22px;
+  border-radius: 999px;
+  background: #d1d5db;
+  position: relative;
+  transition: background-color 0.2s ease;
+}
+
+.merchant-admin-switch > span::after {
+  content: "";
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s ease;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.2);
+}
+
+.merchant-admin-switch input:checked + span {
+  background: #10b981;
+}
+
+.merchant-admin-switch input:checked + span::after {
+  transform: translateX(18px);
+}
+
+.merchant-admin-switch.compact > span {
+  width: 34px;
+  height: 20px;
+}
+
+.merchant-admin-switch.compact > span::after {
+  width: 14px;
+  height: 14px;
+}
+
+.merchant-admin-switch.compact input:checked + span::after {
+  transform: translateX(14px);
+}
+
+.merchant-admin-form-actions {
+  margin-top: 6px;
+  display: flex;
+  gap: 8px;
+}
+
+.merchant-admin-account-password-box {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px;
+  background: #fafafa;
+}
+
+.merchant-admin-account-password-box h3 {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  color: #374151;
+}
+
+.merchant-admin-account-memberships {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px;
+  background: #fff;
+}
+
+.merchant-admin-account-memberships h3 {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  color: #374151;
+}
+
+.merchant-admin-account-memberships ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.merchant-admin-account-memberships li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid #f1f5f9;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.merchant-admin-role-chip {
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #374151;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+}
+
+.merchant-admin-table-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+.merchant-admin-table-header-actions {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+
+.merchant-admin-search-input {
+  width: 100%;
+  border: 1px solid #cbd5e1;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.merchant-admin-search-panel {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 10px;
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+  display: grid;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.merchant-admin-search-box {
+  display: grid !important;
+  grid-template-columns: 54px 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 8px;
+  border: 1px solid #dbe3ef;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.merchant-admin-search-box-label {
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.merchant-admin-filter-group {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.merchant-admin-filter-group label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.merchant-admin-filter-select {
+  min-width: 140px;
+  border: 1px solid #cbd5e1;
+  border-radius: 10px;
+  background: #fff;
+  padding: 8px 10px;
+}
+
+.merchant-admin-category-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.merchant-admin-category-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.merchant-admin-category-list.is-sorting .merchant-admin-category-item {
+  transition: transform 0.18s ease, box-shadow 0.18s ease, border-color 0.18s ease, background 0.18s ease;
+}
+
+.merchant-admin-category-item {
+  display: flex;
+  gap: 10px;
+  align-items: center;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  background: #fff;
+  padding: 10px;
+}
+
+.merchant-admin-category-item.dragging {
+  opacity: 0.6;
+  transform: scale(0.985);
+  box-shadow: 0 6px 16px rgba(15, 23, 42, 0.14);
+}
+
+.merchant-admin-category-item.drop-before {
+  border-top: 2px solid #2563eb;
+  box-shadow: inset 0 2px 0 #2563eb;
+  background: #eff6ff;
+}
+
+.merchant-admin-category-item.drop-after {
+  border-bottom: 2px solid #2563eb;
+  box-shadow: inset 0 -2px 0 #2563eb;
+  background: #eff6ff;
+}
+
+.merchant-admin-category-grip {
+  width: 24px;
+  text-align: center;
+  color: #6b7280;
+  cursor: grab;
+  user-select: none;
+  font-size: 1.1rem;
+}
+
+.merchant-admin-category-body {
+  flex: 1;
+  min-width: 0;
+}
+
+.merchant-admin-category-title-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+}
+
+.merchant-admin-category-title-row strong {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.merchant-admin-category-body p {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 0.82rem;
+}
+
+.merchant-admin-category-order {
+  font-size: 0.75rem;
+  color: #6b7280;
+}
+
+.merchant-admin-drag-tip {
+  margin: -4px 0 10px;
+  color: #6b7280;
+  font-size: 0.82rem;
+}
+
+.merchant-admin-category-controls {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.merchant-admin-page button.active-filter {
+  background: #111827;
+  color: #fff;
+  border-color: #111827;
+}
+
+.merchant-admin-table-wrap {
+  overflow: auto;
+}
+
+.merchant-admin-orders {
+  display: grid;
+  gap: 10px;
+}
+
+.merchant-admin-order-card {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 12px;
+  background: #fff;
+}
+
+.merchant-admin-order-head {
+  display: flex;
+  justify-content: space-between;
+  gap: 10px;
+  align-items: flex-start;
+}
+
+.merchant-admin-order-head p {
+  margin: 4px 0 0;
+  color: #6b7280;
+  font-size: 0.82rem;
+}
+
+.merchant-admin-order-total {
+  font-weight: 700;
+  color: #065f46;
+}
+
+.merchant-admin-order-items {
+  list-style: none;
+  padding: 0;
+  margin: 10px 0 0;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.merchant-admin-order-items li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid #f3f4f6;
+  border-radius: 8px;
+  padding: 6px 8px;
+  font-size: 0.86rem;
+}
+
+.merchant-admin-order-actions {
+  margin-top: 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.merchant-admin-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.88rem;
+}
+
+.merchant-admin-table.is-reorderable tbody tr {
+  transition: box-shadow 0.16s ease, transform 0.16s ease, background-color 0.16s ease;
+}
+
+.merchant-admin-table.is-reorderable tbody tr.dragging {
+  opacity: 0.65;
+  transform: scale(0.996);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.1);
+}
+
+.merchant-admin-table.is-reorderable tbody tr.drop-before td {
+  box-shadow: inset 0 2px 0 #2563eb;
+  background: #eff6ff;
+}
+
+.merchant-admin-table.is-reorderable tbody tr.drop-after td {
+  box-shadow: inset 0 -2px 0 #2563eb;
+  background: #eff6ff;
+}
+
+.merchant-admin-table th,
+.merchant-admin-table td {
+  text-align: left;
+  border-bottom: 1px solid #e5e7eb;
+  padding: 9px 8px;
+  vertical-align: top;
+}
+
+.merchant-admin-item-grip-cell {
+  width: 50px;
+}
+
+.merchant-admin-item-grip {
+  color: #6b7280;
+  user-select: none;
+  font-size: 1.02rem;
+  cursor: grab;
+  display: inline-block;
+  min-width: 18px;
+  text-align: center;
+}
+
+.merchant-admin-item-name {
+  font-weight: 600;
+}
+
+.merchant-admin-item-desc {
+  margin-top: 3px;
+  color: #6b7280;
+  font-size: 0.8rem;
+}
+
+.merchant-admin-item-tags {
+  margin-top: 6px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px;
+}
+
+.merchant-admin-item-tags span {
+  font-size: 0.72rem;
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  padding: 2px 6px;
+  color: #374151;
+  background: #f9fafb;
+}
+
+.merchant-admin-file-input {
+  width: 100%;
+  max-width: 100%;
+}
+
+.merchant-admin-table-actions {
+  display: flex;
+  gap: 6px;
+}
+
+.merchant-admin-empty {
+  margin: 0;
+  color: #6b7280;
+  font-size: 0.9rem;
+}
+
+.merchant-admin-error,
+.merchant-admin-success {
+  margin: 10px 2px 0;
+  font-size: 0.88rem;
+}
+
+.merchant-admin-error {
+  color: #b91c1c;
+}
+
+.merchant-admin-success {
+  color: #047857;
+}
+
+.merchant-admin-toast {
+  position: fixed;
+  right: 18px;
+  bottom: 18px;
+  z-index: 1200;
+  min-width: 220px;
+  max-width: min(420px, calc(100vw - 36px));
+  border-radius: 10px;
+  padding: 10px 12px;
+  color: #fff;
+  font-size: 0.86rem;
+  box-shadow: 0 12px 26px rgba(15, 23, 42, 0.22);
+  animation: merchant-admin-toast-in 0.18s ease-out;
+}
+
+.merchant-admin-toast.success {
+  background: #047857;
+}
+
+.merchant-admin-toast.error {
+  background: #b91c1c;
+}
+
+.merchant-admin-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(15, 23, 42, 0.48);
+  display: grid;
+  place-items: center;
+  z-index: 1300;
+  padding: 16px;
+}
+
+.merchant-admin-modal {
+  width: min(460px, 100%);
+  background: #fff;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 14px;
+  box-shadow: 0 18px 40px rgba(15, 23, 42, 0.26);
+}
+
+.merchant-admin-modal h3 {
+  margin: 0;
+  font-size: 1.02rem;
+}
+
+.merchant-admin-modal p {
+  margin: 10px 0 0;
+  color: #4b5563;
+  font-size: 0.9rem;
+  line-height: 1.45;
+}
+
+.merchant-admin-modal-actions {
+  margin-top: 14px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.merchant-admin-modal-actions button {
+  min-width: 84px;
+}
+
+@keyframes merchant-admin-toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.dot {
+  margin: 0 4px;
+  color: #9ca3af;
+}
+
+.merchant-admin-page button {
+  border: 1px solid transparent;
+  border-radius: 8px;
+  padding: 8px 12px;
+  background: #111827;
+  color: #fff;
+  cursor: pointer;
+}
+
+.merchant-admin-page button.secondary {
+  background: #fff;
+  border-color: #d1d5db;
+  color: #111827;
+}
+
+.merchant-admin-page button.danger {
+  background: #b91c1c;
+}
+
+@media (max-width: 1080px) {
+  .merchant-admin-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .merchant-admin-search-input {
+    width: 100%;
+    max-width: none;
+  }
+
+  .merchant-admin-table-header-actions {
+    width: 100%;
+    flex-direction: row;
+    flex-wrap: wrap;
+    align-items: stretch;
+  }
+
+  .merchant-admin-filter-group {
+    grid-template-columns: 1fr;
+  }
+
+  .merchant-admin-search-box {
+    grid-template-columns: 1fr;
+    gap: 6px;
+  }
+
+  .merchant-admin-allergen-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .merchant-admin-category-item {
+    flex-wrap: wrap;
+  }
+
+  .merchant-admin-category-controls {
+    width: 100%;
+    justify-content: flex-end;
+  }
+}

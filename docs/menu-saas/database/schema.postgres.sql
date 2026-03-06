@@ -228,6 +228,46 @@ create table if not exists menu_item_allergens (
 create index if not exists idx_menu_item_allergens_allergen
   on menu_item_allergens (allergen_id);
 
+-- ========= Orders =========
+do $$
+begin
+  if not exists (select 1 from pg_type where typname = 'order_status') then
+    create type order_status as enum ('new', 'accepted', 'preparing', 'ready');
+  end if;
+end$$;
+
+create table if not exists orders (
+  id uuid primary key default gen_random_uuid(),
+  store_id uuid not null references stores(id) on delete cascade,
+  table_code text,
+  status order_status not null default 'new',
+  note text,
+  created_at timestamptz not null default now(),
+  updated_at timestamptz not null default now()
+);
+
+drop trigger if exists trg_orders_updated_at on orders;
+create trigger trg_orders_updated_at
+before update on orders
+for each row execute function set_updated_at();
+
+create index if not exists idx_orders_store_status_created
+  on orders (store_id, status, created_at desc);
+
+create table if not exists order_items (
+  id uuid primary key default gen_random_uuid(),
+  order_id uuid not null references orders(id) on delete cascade,
+  menu_item_id uuid references menu_items(id) on delete set null,
+  item_name_snapshot text not null,
+  price_minor integer not null check (price_minor >= 0),
+  currency_code char(3) not null,
+  quantity integer not null check (quantity > 0),
+  created_at timestamptz not null default now()
+);
+
+create index if not exists idx_order_items_order
+  on order_items (order_id);
+
 -- ========= Translation job tracking =========
 do $$
 begin

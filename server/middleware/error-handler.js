@@ -22,6 +22,19 @@ export const errorHandler = (error, req, res, next) => {
     });
   }
 
+  if (error?.name === "MulterError") {
+    if (error.code === "LIMIT_FILE_SIZE") {
+      return res.status(400).json({
+        message: "Image is too large. Max size is 5MB.",
+      });
+    }
+
+    return res.status(400).json({
+      message: "File upload failed.",
+      details: error.message ?? null,
+    });
+  }
+
   if (error?.code === "23503") {
     return res.status(409).json({
       message: "Operation violates data relationship constraints.",

@@ -9,6 +9,8 @@ type MenuItemCardProps = {
   allergens?: string[];
   imageUrl?: string;
   onClick?: () => void;
+  addButtonText?: string;
+  onAddToBasket?: () => void;
 };
 
 const MenuItemCard: React.FC<MenuItemCardProps> = ({
@@ -20,6 +22,8 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   allergens = [],
   imageUrl,
   onClick,
+  addButtonText = "Add",
+  onAddToBasket,
 }) => {
   const displayPrice =
     typeof price === "number"
@@ -50,6 +54,21 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
               </li>
             ))}
           </ul>
+        ) : null}
+
+        {onAddToBasket ? (
+          <div className="menu-item-card__actions">
+            <button
+              type="button"
+              className="menu-item-card__add-button"
+              onClick={(event) => {
+                event.stopPropagation();
+                onAddToBasket();
+              }}
+            >
+              {addButtonText}
+            </button>
+          </div>
         ) : null}
       </div>
     </article>
