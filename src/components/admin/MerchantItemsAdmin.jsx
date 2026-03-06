@@ -21,10 +21,10 @@ const DEFAULT_ALLERGEN_OPTIONS = [
 ];
 
 const ORDER_STATUS_LABEL = {
-  new: "new",
-  accepted: "accepted",
-  preparing: "prepare",
-  ready: "ready",
+  new: "新订单",
+  accepted: "已接受",
+  preparing: "准备中",
+  ready: "已准备",
 };
 
 const EMPTY_ITEM_FORM = {
@@ -188,6 +188,7 @@ const MerchantItemsAdmin = () => {
   const [accountSubmitLoading, setAccountSubmitLoading] = useState(false);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [orderActionLoadingId, setOrderActionLoadingId] = useState("");
+  const [finishConfirmOrder, setFinishConfirmOrder] = useState(null);
 
   const [errorMessage, setErrorMessage] = useState("");
   const [successMessage, setSuccessMessage] = useState("");
@@ -987,10 +988,18 @@ const MerchantItemsAdmin = () => {
     }
   };
 
-  const handleFinishOrder = async (order) => {
-    const confirmed = window.confirm("确认完成并删除该订单吗？删除后将从列表消失。");
-    if (!confirmed) return;
+  const handleOpenFinishConfirm = (order) => {
+    setFinishConfirmOrder(order);
+  };
 
+  const handleCloseFinishConfirm = () => {
+    if (finishConfirmOrder && orderActionLoadingId === finishConfirmOrder.id) return;
+    setFinishConfirmOrder(null);
+  };
+
+  const handleConfirmFinishOrder = async () => {
+    if (!finishConfirmOrder) return;
+    const order = finishConfirmOrder;
     setOrderActionLoadingId(order.id);
     setErrorMessage("");
     setSuccessMessage("");
@@ -999,6 +1008,7 @@ const MerchantItemsAdmin = () => {
         method: "DELETE",
       });
       setSuccessMessage(`订单 ${order.tableCode ?? "-"} 已完成并移除`);
+      setFinishConfirmOrder(null);
       await loadData();
     } catch (error) {
       setErrorMessage(error.message || "完成订单失败");
@@ -1816,7 +1826,7 @@ const MerchantItemsAdmin = () => {
                         disabled={orderActionLoadingId === order.id}
                         onClick={() => handleUpdateOrderStatus(order, "accepted")}
                       >
-                        accept
+                        接受订单
                       </button>
                       <button
                         type="button"
@@ -1824,7 +1834,7 @@ const MerchantItemsAdmin = () => {
                         disabled={orderActionLoadingId === order.id}
                         onClick={() => handleUpdateOrderStatus(order, "preparing")}
                       >
-                        prepare
+                        准备中
                       </button>
                       <button
                         type="button"
@@ -1832,15 +1842,15 @@ const MerchantItemsAdmin = () => {
                         disabled={orderActionLoadingId === order.id}
                         onClick={() => handleUpdateOrderStatus(order, "ready")}
                       >
-                        ready
+                        已准备
                       </button>
                       <button
                         type="button"
                         className="danger"
                         disabled={orderActionLoadingId === order.id}
-                        onClick={() => handleFinishOrder(order)}
+                        onClick={() => handleOpenFinishConfirm(order)}
                       >
-                        finish
+                        结束订单
                       </button>
                     </div>
                   </article>
@@ -1850,6 +1860,42 @@ const MerchantItemsAdmin = () => {
           </section>
         ) : null}
       </div>
+      {finishConfirmOrder ? (
+        <div className="merchant-admin-modal-backdrop" role="presentation" onClick={handleCloseFinishConfirm}>
+          <div
+            className="merchant-admin-modal"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="finish-order-modal-title"
+            onClick={(event) => event.stopPropagation()}
+          >
+            <h3 id="finish-order-modal-title">确认结束订单</h3>
+            <p>
+              确认结束订单（桌号: {finishConfirmOrder.tableCode || "-"}）吗？
+              <br />
+              结束后订单将从列表移除。
+            </p>
+            <div className="merchant-admin-modal-actions">
+              <button
+                type="button"
+                className="secondary"
+                disabled={orderActionLoadingId === finishConfirmOrder.id}
+                onClick={handleCloseFinishConfirm}
+              >
+                取消
+              </button>
+              <button
+                type="button"
+                className="danger"
+                disabled={orderActionLoadingId === finishConfirmOrder.id}
+                onClick={handleConfirmFinishOrder}
+              >
+                {orderActionLoadingId === finishConfirmOrder.id ? "处理中..." : "确定"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       {toast ? <div className={`merchant-admin-toast ${toast.type}`}>{toast.message}</div> : null}
     </div>
   );
