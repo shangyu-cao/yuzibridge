@@ -16,12 +16,22 @@ const LANGUAGE_ROWS = [
   { code: "zh-CN", englishName: "Chinese (Simplified)", nativeName: "简体中文", isRtl: false },
   { code: "en-US", englishName: "English (US)", nativeName: "English (US)", isRtl: false },
   { code: "ja-JP", englishName: "Japanese", nativeName: "日本語", isRtl: false },
+  { code: "ko-KR", englishName: "Korean", nativeName: "한국어", isRtl: false },
+  { code: "es-ES", englishName: "Spanish", nativeName: "Español", isRtl: false },
+  { code: "fr-FR", englishName: "French", nativeName: "Français", isRtl: false },
+  { code: "de-DE", englishName: "German", nativeName: "Deutsch", isRtl: false },
+  { code: "ar-SA", englishName: "Arabic", nativeName: "العربية", isRtl: true },
 ];
 
 const STORE_LANGUAGE_ROWS = [
   { code: "zh-CN", isDefault: true, isEnabled: true },
   { code: "en-US", isDefault: false, isEnabled: true },
   { code: "ja-JP", isDefault: false, isEnabled: true },
+  { code: "ko-KR", isDefault: false, isEnabled: true },
+  { code: "es-ES", isDefault: false, isEnabled: true },
+  { code: "fr-FR", isDefault: false, isEnabled: true },
+  { code: "de-DE", isDefault: false, isEnabled: true },
+  { code: "ar-SA", isDefault: false, isEnabled: true },
 ];
 
 const SOCIAL_LINKS = [

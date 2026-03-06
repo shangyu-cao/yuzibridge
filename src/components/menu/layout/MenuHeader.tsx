@@ -46,7 +46,9 @@ const MenuHeader: React.FC<MenuHeaderProps> = ({
         >
           {languages.map((language) => (
             <option key={language.code} value={language.code}>
-              {language.nativeLabel ? `${language.label} (${language.nativeLabel})` : language.label}
+              {language.nativeLabel && language.nativeLabel !== language.label
+                ? `${language.label} (${language.nativeLabel})`
+                : language.label}
             </option>
           ))}
         </select>

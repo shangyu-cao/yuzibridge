@@ -92,10 +92,26 @@ type UiCopy = {
 
 const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000").replace(/\/$/, "");
 
+const LANGUAGE_PRESET_LABELS: Record<string, { label: string; nativeLabel: string }> = {
+  "en-US": { label: "English", nativeLabel: "English" },
+  "zh-CN": { label: "中文", nativeLabel: "中文" },
+  "ja-JP": { label: "日本語", nativeLabel: "日本語" },
+  "ko-KR": { label: "한국어", nativeLabel: "한국어" },
+  "es-ES": { label: "Español", nativeLabel: "Español" },
+  "fr-FR": { label: "Français", nativeLabel: "Français" },
+  "de-DE": { label: "Deutsch", nativeLabel: "Deutsch" },
+  "ar-SA": { label: "العربية", nativeLabel: "العربية" },
+};
+
 const FALLBACK_LANGUAGES: LanguageOption[] = [
-  { code: "zh-CN", label: "Chinese", nativeLabel: "简体中文" },
   { code: "en-US", label: "English", nativeLabel: "English" },
-  { code: "ja-JP", label: "Japanese", nativeLabel: "日本語" },
+  { code: "zh-CN", label: "中文", nativeLabel: "中文" },
+  { code: "ja-JP", label: "日本語", nativeLabel: "日本語" },
+  { code: "ko-KR", label: "한국어", nativeLabel: "한국어" },
+  { code: "es-ES", label: "Español", nativeLabel: "Español" },
+  { code: "fr-FR", label: "Français", nativeLabel: "Français" },
+  { code: "de-DE", label: "Deutsch", nativeLabel: "Deutsch" },
+  { code: "ar-SA", label: "العربية", nativeLabel: "العربية" },
 ];
 
 const normalizeLanguageCode = (value: string) => {
@@ -352,8 +368,8 @@ const toLanguageOptions = (payload: PublicLanguageResponse): LanguageOption[] =>
 
   return payload.languages.map((language) => ({
     code: language.code,
-    label: language.englishName,
-    nativeLabel: language.name,
+    label: LANGUAGE_PRESET_LABELS[language.code]?.label ?? language.englishName,
+    nativeLabel: LANGUAGE_PRESET_LABELS[language.code]?.nativeLabel ?? language.name,
   }));
 };
 

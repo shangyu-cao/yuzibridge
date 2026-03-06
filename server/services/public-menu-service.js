@@ -20,6 +20,17 @@ const decodeHtmlEntities = (value) => {
     .replaceAll("&#39;", "'");
 };
 
+const LANGUAGE_PRIORITY_ORDER = [
+  "en-US",
+  "zh-CN",
+  "ja-JP",
+  "ko-KR",
+  "es-ES",
+  "fr-FR",
+  "de-DE",
+  "ar-SA",
+];
+
 const translateTextsWithGoogle = async ({ texts, targetLanguage, sourceLanguage }) => {
   if (!texts.length) return [];
   if (!config.googleTranslateApiKey) {
@@ -135,22 +146,35 @@ export const getStoreLanguagesBySlug = async (storeSlug) => {
   const languageResult = await query(
     `
       select
-        sl.language_code as code,
+        l.code as code,
         l.english_name as english_name,
         l.native_name as native_name,
-        sl.is_default as is_default
-      from store_languages sl
-      join languages l on l.code = sl.language_code
-      where sl.store_id = $1 and sl.is_enabled = true
+        case when l.code = $2 then true else false end as is_default
+      from languages l
+      left join store_languages sl
+        on sl.language_code = l.code
+        and sl.store_id = $1
       order by sl.is_default desc, sl.language_code asc
     `,
-    [store.id],
+    [store.id, store.default_language_code],
   );
+
+  const priorityRank = new Map(LANGUAGE_PRIORITY_ORDER.map((code, index) => [code, index]));
+  const sortedRows = [...languageResult.rows].sort((a, b) => {
+    if (a.code === store.default_language_code && b.code !== store.default_language_code) return -1;
+    if (b.code === store.default_language_code && a.code !== store.default_language_code) return 1;
+    const rankA = priorityRank.has(a.code) ? priorityRank.get(a.code) : 999;
+    const rankB = priorityRank.has(b.code) ? priorityRank.get(b.code) : 999;
+    if (rankA !== rankB) return rankA - rankB;
+    return a.code.localeCompare(b.code);
+  });
+
+  const topEightRows = sortedRows.slice(0, 8);
 
   return {
     storeSlug: store.slug,
     defaultLanguage: store.default_language_code,
-    languages: languageResult.rows.map((row) => ({
+    languages: topEightRows.map((row) => ({
       code: row.code,
       name: row.native_name,
       englishName: row.english_name,
