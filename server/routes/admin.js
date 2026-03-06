@@ -1,5 +1,4 @@
 import express from "express";
-import fs from "node:fs";
 import path from "node:path";
 import { randomUUID } from "node:crypto";
 import multer from "multer";
@@ -8,15 +7,13 @@ import { query, withTransaction } from "../db/pool.js";
 import { authenticateAdmin, requireStoreRole } from "../middleware/auth.js";
 import { asyncHandler } from "../utils/async-handler.js";
 import { HttpError } from "../utils/http-error.js";
+import { resolveUploadsDirectory } from "../utils/uploads-directory.js";
 import { ensureCategoryBelongsStore, getActiveStoreForAdmin } from "../services/store-service.js";
 
 const router = express.Router();
 router.use(authenticateAdmin);
 
-const uploadsDirectory = path.resolve(process.cwd(), "server", "uploads");
-if (!fs.existsSync(uploadsDirectory)) {
-  fs.mkdirSync(uploadsDirectory, { recursive: true });
-}
+const uploadsDirectory = resolveUploadsDirectory();
 
 const allowedImageMimeTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
