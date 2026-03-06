@@ -46,38 +46,66 @@ const toGoogleLanguageCode = (code) => {
 
 const translateTextsWithGoogle = async ({ texts, targetLanguage, sourceLanguage }) => {
   if (!texts.length) return [];
-  if (!config.googleTranslateApiKey) {
-    throw new HttpError(503, "Google Translate API key is not configured");
+
+  if (config.googleTranslateApiKey) {
+    const endpoint = new URL("https://translation.googleapis.com/language/translate/v2");
+    endpoint.searchParams.set("key", config.googleTranslateApiKey);
+
+    const response = await globalThis.fetch(endpoint, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({
+        q: texts,
+        target: targetLanguage,
+        source: sourceLanguage,
+        format: "text",
+      }),
+    });
+
+    const payload = await response.json().catch(() => null);
+    if (!response.ok) {
+      const message = payload?.error?.message || `Google Translate request failed (${response.status})`;
+      throw new HttpError(502, message);
+    }
+
+    const translatedRows = payload?.data?.translations;
+    if (!Array.isArray(translatedRows) || translatedRows.length !== texts.length) {
+      throw new HttpError(502, "Unexpected Google Translate response");
+    }
+
+    return translatedRows.map((row) => decodeHtmlEntities(row?.translatedText ?? ""));
   }
 
-  const endpoint = new URL("https://translation.googleapis.com/language/translate/v2");
-  endpoint.searchParams.set("key", config.googleTranslateApiKey);
+  const translateOneByGoogleWeb = async (text) => {
+    const endpoint = new URL("https://translate.googleapis.com/translate_a/single");
+    endpoint.searchParams.set("client", "gtx");
+    endpoint.searchParams.set("sl", sourceLanguage || "auto");
+    endpoint.searchParams.set("tl", targetLanguage);
+    endpoint.searchParams.set("dt", "t");
+    endpoint.searchParams.set("q", text);
 
-  const response = await globalThis.fetch(endpoint, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      q: texts,
-      target: targetLanguage,
-      source: sourceLanguage,
-      format: "text",
-    }),
-  });
+    const response = await globalThis.fetch(endpoint);
+    if (!response.ok) {
+      throw new HttpError(502, `Google Translate web request failed (${response.status})`);
+    }
 
-  const payload = await response.json().catch(() => null);
-  if (!response.ok) {
-    const message = payload?.error?.message || `Google Translate request failed (${response.status})`;
-    throw new HttpError(502, message);
-  }
+    const payload = await response.json().catch(() => null);
+    if (!Array.isArray(payload) || !Array.isArray(payload[0])) {
+      throw new HttpError(502, "Unexpected Google Translate web response");
+    }
 
-  const translatedRows = payload?.data?.translations;
-  if (!Array.isArray(translatedRows) || translatedRows.length !== texts.length) {
-    throw new HttpError(502, "Unexpected Google Translate response");
-  }
+    const chunks = payload[0]
+      .map((entry) => (Array.isArray(entry) ? entry[0] : ""))
+      .filter((entry) => typeof entry === "string");
+    return decodeHtmlEntities(chunks.join(""));
+  };
 
-  return translatedRows.map((row) => decodeHtmlEntities(row?.translatedText ?? ""));
+  const uniqueTexts = [...new Set(texts)];
+  const translatedUnique = await Promise.all(uniqueTexts.map((text) => translateOneByGoogleWeb(text)));
+  const translatedMap = new Map(uniqueTexts.map((text, index) => [text, translatedUnique[index]]));
+  return texts.map((text) => translatedMap.get(text) ?? text);
 };
 
 const translatePublicMenuPayload = async (menuPayload, targetLanguage) => {
