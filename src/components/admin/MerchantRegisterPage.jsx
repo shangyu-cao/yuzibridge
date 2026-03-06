@@ -22,6 +22,19 @@ const USER_KEY = "merchant_admin_user";
 const MEMBERSHIPS_KEY = "merchant_admin_memberships";
 const STORE_KEY = "merchant_admin_store_id";
 
+const resolveRegisterErrorMessage = (payload, statusCode) => {
+  const message = payload?.message || "";
+  if (message === "Email is already registered") {
+    return "该邮箱已注册，请直接登录或更换邮箱";
+  }
+  if (message === "Validation failed") {
+    return "注册信息不完整，请检查店铺名、账户名、邮箱和密码";
+  }
+  if (message) return message;
+  if (statusCode === 409) return "该邮箱已注册，请直接登录或更换邮箱";
+  return "注册失败";
+};
+
 const MerchantRegisterPage = () => {
   const [storeName, setStoreName] = useState("");
   const [displayName, setDisplayName] = useState("");
@@ -87,7 +100,7 @@ const MerchantRegisterPage = () => {
 
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
-        throw new Error(payload?.message || "注册失败");
+        throw new Error(resolveRegisterErrorMessage(payload, response.status));
       }
 
       localStorage.setItem(TOKEN_KEY, payload.token);

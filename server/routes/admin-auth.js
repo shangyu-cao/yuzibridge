@@ -147,10 +147,34 @@ const createStoreWithUniqueSlug = async (dbClient, { storeName, defaultLanguageC
   throw new HttpError(500, "Failed to allocate unique store slug");
 };
 
+const isUsersEmailConflict = (error) => {
+  if (!error) return false;
+  const constraint = String(error?.constraint ?? "").toLowerCase();
+  if (constraint === "users_email_key") return true;
+  if (error?.code === "23505" && constraint.includes("users_email")) return true;
+
+  const messageText = String(error?.message ?? "").toLowerCase();
+  const detailText = String(error?.detail ?? "").toLowerCase();
+  return messageText.includes("users_email_key") || detailText.includes("users_email_key");
+};
+
 router.post(
   "/register",
   asyncHandler(async (req, res) => {
     const payload = registerSchema.parse(req.body);
+    const existingUserResult = await query(
+      `
+        select id
+        from users
+        where email = $1
+        limit 1
+      `,
+      [payload.email],
+    );
+    if (existingUserResult.rowCount > 0) {
+      throw new HttpError(409, "Email is already registered");
+    }
+
     const passwordHash = await bcrypt.hash(payload.password, 10);
 
     let created;
@@ -216,7 +240,7 @@ router.post(
         return { user, store };
       });
     } catch (error) {
-      if (error?.code === "23505") {
+      if (isUsersEmailConflict(error)) {
         throw new HttpError(409, "Email is already registered");
       }
       throw error;
