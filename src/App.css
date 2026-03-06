@@ -75,6 +75,32 @@
   background-color: #d4a12d;
 }
 
+.nav-auth-button {
+  text-decoration: none;
+  font-size: 14px;
+  font-weight: 600;
+  padding: 7px 14px;
+  border-radius: 999px;
+  border: 1px solid #111827;
+  background: #111827;
+  color: #fff;
+  transition: all 0.2s ease;
+}
+
+.nav-auth-button:hover {
+  background: #1f2937;
+  border-color: #1f2937;
+}
+
+.nav-auth-button--secondary {
+  background: transparent;
+  color: #111827;
+}
+
+.nav-auth-button--secondary:hover {
+  background: rgba(17, 24, 39, 0.06);
+}
+
 .hero {
   max-width: 1200px;
   margin: 0 auto;

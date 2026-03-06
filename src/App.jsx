@@ -67,6 +67,12 @@ function App() {
           <a href="#" className="nav-item">
             联系我们
           </a>
+          <a href="/merchant-admin" className="nav-auth-button nav-auth-button--secondary">
+            注册
+          </a>
+          <a href="/merchant-admin" className="nav-auth-button">
+            登录
+          </a>
         </nav>
       </header>
 
