@@ -98,8 +98,25 @@ router.post(
       throw new HttpError(401, "Invalid email or password");
     }
 
-    const memberships = await getMembershipsByUserId(user.id);
-    res.json(toAuthPayload(user, memberships));
+    const loginUserResult = await query(
+      `
+        update users
+        set last_login_at = now()
+        where id = $1
+        returning id, email, display_name, is_platform_admin, created_at, last_login_at
+      `,
+      [user.id],
+    );
+    const loginUser = loginUserResult.rows[0];
+
+    const memberships = await getMembershipsByUserId(loginUser.id);
+    res.json({
+      ...toAuthPayload(loginUser, memberships),
+      accountMeta: {
+        createdAt: loginUser.created_at,
+        lastLoginAt: loginUser.last_login_at,
+      },
+    });
   }),
 );
 
@@ -192,15 +209,23 @@ router.put(
     if (nextPasswordHash) appendUpdate("password_hash", nextPasswordHash);
 
     updateValues.push(userId);
-    const updatedUserResult = await query(
-      `
-        update users
-        set ${updateFragments.join(", ")}
-        where id = $${updateValues.length}
-        returning id, email, display_name, is_platform_admin
-      `,
-      updateValues,
-    );
+    let updatedUserResult;
+    try {
+      updatedUserResult = await query(
+        `
+          update users
+          set ${updateFragments.join(", ")}
+          where id = $${updateValues.length}
+          returning id, email, display_name, is_platform_admin
+        `,
+        updateValues,
+      );
+    } catch (error) {
+      if (error?.code === "23505") {
+        throw new HttpError(409, "Email is already used by another account");
+      }
+      throw error;
+    }
 
     if (updatedUserResult.rowCount === 0) {
       throw new HttpError(404, "User not found");

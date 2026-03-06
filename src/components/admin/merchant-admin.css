@@ -265,6 +265,47 @@
   color: #374151;
 }
 
+.merchant-admin-account-memberships {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  padding: 10px;
+  background: #fff;
+}
+
+.merchant-admin-account-memberships h3 {
+  margin: 0 0 8px;
+  font-size: 0.9rem;
+  color: #374151;
+}
+
+.merchant-admin-account-memberships ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.merchant-admin-account-memberships li {
+  display: flex;
+  justify-content: space-between;
+  gap: 8px;
+  align-items: center;
+  border: 1px solid #f1f5f9;
+  border-radius: 8px;
+  padding: 8px;
+}
+
+.merchant-admin-role-chip {
+  border: 1px solid #d1d5db;
+  border-radius: 999px;
+  background: #f8fafc;
+  color: #374151;
+  font-size: 0.75rem;
+  padding: 2px 8px;
+}
+
 .merchant-admin-table-header {
   display: flex;
   align-items: center;

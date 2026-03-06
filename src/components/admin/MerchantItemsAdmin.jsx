@@ -286,20 +286,13 @@ const MerchantItemsAdmin = () => {
   );
 
   const loadData = useCallback(async () => {
-    if (!token || !selectedStoreId) return;
+    if (!token) return;
 
     setLoading(true);
     setErrorMessage("");
 
     try {
-      const [accountResp, storeResp, categoryResp, itemResp, allergenResp, orderResp] = await Promise.all([
-        fetchWithAuth("/api/admin/auth/me"),
-        fetchWithAuth(`/api/admin/stores/${selectedStoreId}/profile`),
-        fetchWithAuth(`/api/admin/stores/${selectedStoreId}/categories`),
-        fetchWithAuth(`/api/admin/stores/${selectedStoreId}/items`),
-        fetchWithAuth(`/api/admin/stores/${selectedStoreId}/allergens`),
-        fetchWithAuth(`/api/admin/stores/${selectedStoreId}/orders`),
-      ]);
+      const accountResp = await fetchWithAuth("/api/admin/auth/me");
 
       if (accountResp?.user) {
         setUser(accountResp.user);
@@ -310,6 +303,24 @@ const MerchantItemsAdmin = () => {
         localStorage.setItem(MEMBERSHIPS_KEY, JSON.stringify(accountResp.memberships));
       }
       setAccountForm(normalizeAccountForm(accountResp?.user, accountResp?.accountMeta));
+
+      if (!selectedStoreId) {
+        setStoreForm(EMPTY_STORE_FORM);
+        setCategories([]);
+        setItems([]);
+        setOrders([]);
+        setAllergenOptions(DEFAULT_ALLERGEN_OPTIONS);
+        return;
+      }
+
+      const [storeResp, categoryResp, itemResp, allergenResp, orderResp] = await Promise.all([
+        fetchWithAuth(`/api/admin/stores/${selectedStoreId}/profile`),
+        fetchWithAuth(`/api/admin/stores/${selectedStoreId}/categories`),
+        fetchWithAuth(`/api/admin/stores/${selectedStoreId}/items`),
+        fetchWithAuth(`/api/admin/stores/${selectedStoreId}/allergens`),
+        fetchWithAuth(`/api/admin/stores/${selectedStoreId}/orders`),
+      ]);
+
       setStoreForm(normalizeStoreForm(storeResp));
       setCategories(categoryResp?.categories ?? []);
       setItems(itemResp?.items ?? []);
@@ -392,7 +403,7 @@ const MerchantItemsAdmin = () => {
       setUser(payload.user);
       setMemberships(payload.memberships ?? []);
       setSelectedStoreId(nextStoreId);
-      setAccountForm(normalizeAccountForm(payload.user, null));
+      setAccountForm(normalizeAccountForm(payload.user, payload.accountMeta ?? null));
 
       localStorage.setItem(TOKEN_KEY, payload.token);
       localStorage.setItem(USER_KEY, JSON.stringify(payload.user));
@@ -1147,6 +1158,24 @@ const MerchantItemsAdmin = () => {
                   最近登录
                   <input type="text" value={formatDatetime(accountForm.lastLoginAt)} readOnly />
                 </label>
+              </div>
+
+              <div className="merchant-admin-account-memberships">
+                <h3>所属商铺与角色</h3>
+                {!memberships.length ? (
+                  <p className="merchant-admin-empty">暂无商铺权限</p>
+                ) : (
+                  <ul>
+                    {memberships.map((membership) => (
+                      <li key={membership.store_id}>
+                        <span>
+                          {membership.store_brand_name ?? membership.store_slug ?? membership.store_id}
+                        </span>
+                        <span className="merchant-admin-role-chip">{membership.role}</span>
+                      </li>
+                    ))}
+                  </ul>
+                )}
               </div>
 
               <div className="merchant-admin-account-password-box">
