@@ -3,6 +3,7 @@ import "./App.css";
 import logo from "./assets/logo.png";
 import MenuPage from "./components/menu/MenuPage";
 import MerchantItemsAdmin from "./components/admin/MerchantItemsAdmin";
+import MerchantRegisterPage from "./components/admin/MerchantRegisterPage";
 
 const DEFAULT_MENU_SLUG = "dunwuzhai";
 
@@ -30,6 +31,11 @@ const parseMenuSlugFromPath = (pathname) => {
 const isMerchantAdminPath = (pathname) => {
   const normalizedPath = pathname.replace(/\/+$/, "");
   return normalizedPath === "/merchant-admin" || normalizedPath.startsWith("/merchant-admin/");
+};
+
+const isMerchantRegisterPath = (pathname) => {
+  const normalizedPath = pathname.replace(/\/+$/, "");
+  return normalizedPath === "/merchant-register" || normalizedPath.startsWith("/merchant-register/");
 };
 
 const FEATURE_ITEMS = [
@@ -61,6 +67,10 @@ const SCENE_ITEMS = [
 ];
 
 function App() {
+  if (isMerchantRegisterPath(window.location.pathname)) {
+    return <MerchantRegisterPage />;
+  }
+
   if (isMerchantAdminPath(window.location.pathname)) {
     return <MerchantItemsAdmin />;
   }
@@ -97,7 +107,7 @@ function App() {
           <a href="#contact" className="nav-item">
             联系我们
           </a>
-          <a href="/merchant-admin" className="nav-auth-button nav-auth-button--secondary">
+          <a href="/merchant-register" className="nav-auth-button nav-auth-button--secondary">
             注册
           </a>
           <a href="/merchant-admin" className="nav-auth-button">
@@ -191,8 +201,8 @@ function App() {
           <h2>准备开始你的多语言菜单系统？</h2>
           <p>联系我们获取部署建议，或直接登录后台体验完整功能。</p>
           <div className="hero-actions">
-            <a className="hero-primary-btn" href="/merchant-admin">
-              登录 / 注册
+            <a className="hero-primary-btn" href="/merchant-register">
+              立即注册
             </a>
             <a className="hero-secondary-btn" href="mailto:contact@yuzibridge.com">
               联系我们

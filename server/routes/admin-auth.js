@@ -3,7 +3,7 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import { z } from "zod";
 import { config } from "../config.js";
-import { query } from "../db/pool.js";
+import { query, withTransaction } from "../db/pool.js";
 import { authenticateAdmin } from "../middleware/auth.js";
 import { asyncHandler } from "../utils/async-handler.js";
 import { HttpError } from "../utils/http-error.js";
@@ -12,6 +12,13 @@ const router = express.Router();
 
 const loginSchema = z.object({
   email: z.string().email(),
+  password: z.string().min(8).max(200),
+});
+
+const registerSchema = z.object({
+  storeName: z.string().trim().min(1).max(120),
+  displayName: z.string().trim().min(1).max(120),
+  email: z.string().trim().email().max(320),
   password: z.string().min(8).max(200),
 });
 
@@ -68,6 +75,168 @@ const toAuthPayload = (user, memberships) => ({
   },
   memberships,
 });
+
+const slugify = (value) => {
+  const normalized = value
+    .normalize("NFKD")
+    .replace(/[^\w\s-]/g, "")
+    .trim()
+    .toLowerCase()
+    .replace(/[\s_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+
+  if (normalized) return normalized;
+  return `store-${Date.now().toString(36)}`;
+};
+
+const resolveDefaultLanguageCode = async (dbClient) => {
+  const languageResult = await dbClient.query(
+    `
+      select code
+      from languages
+      order by code asc
+    `,
+  );
+  const codes = languageResult.rows.map((row) => row.code);
+  if (!codes.length) {
+    throw new HttpError(500, "Languages are not initialized in database");
+  }
+  if (codes.includes("zh-CN")) return "zh-CN";
+  if (codes.includes("en-US")) return "en-US";
+  return codes[0];
+};
+
+const createStoreWithUniqueSlug = async (dbClient, { storeName, defaultLanguageCode }) => {
+  const baseSlug = slugify(storeName);
+
+  for (let attempt = 0; attempt < 20; attempt += 1) {
+    const candidateSlug =
+      attempt === 0 ? baseSlug : `${baseSlug}-${Math.random().toString(36).slice(2, 6)}`;
+    try {
+      const storeResult = await dbClient.query(
+        `
+          insert into stores
+            (
+              slug,
+              legal_name,
+              brand_name,
+              logo_url,
+              default_language_code,
+              default_currency_code,
+              timezone,
+              address_text,
+              contact_phone,
+              contact_email,
+              is_active
+            )
+          values
+            ($1, $2, $3, null, $4, 'CNY', 'Asia/Shanghai', null, null, null, true)
+          returning id, slug, brand_name
+        `,
+        [candidateSlug, storeName, storeName, defaultLanguageCode],
+      );
+      return storeResult.rows[0];
+    } catch (error) {
+      if (error?.code === "23505") {
+        continue;
+      }
+      throw error;
+    }
+  }
+
+  throw new HttpError(500, "Failed to allocate unique store slug");
+};
+
+router.post(
+  "/register",
+  asyncHandler(async (req, res) => {
+    const payload = registerSchema.parse(req.body);
+    const passwordHash = await bcrypt.hash(payload.password, 10);
+
+    let created;
+    try {
+      created = await withTransaction(async (client) => {
+        const defaultLanguageCode = await resolveDefaultLanguageCode(client);
+        const store = await createStoreWithUniqueSlug(client, {
+          storeName: payload.storeName,
+          defaultLanguageCode,
+        });
+
+        const allLanguageResult = await client.query(
+          `
+            select code
+            from languages
+            order by code asc
+          `,
+        );
+
+        await client.query(
+          `
+            insert into users
+              (email, password_hash, display_name, is_platform_admin, is_active, last_login_at)
+            values
+              ($1, $2, $3, false, true, now())
+          `,
+          [payload.email, passwordHash, payload.displayName],
+        );
+
+        const userResult = await client.query(
+          `
+            select id, email, display_name, is_platform_admin, created_at, last_login_at
+            from users
+            where email = $1
+            limit 1
+          `,
+          [payload.email],
+        );
+        const user = userResult.rows[0];
+
+        await client.query(
+          `
+            insert into store_memberships (store_id, user_id, role)
+            values ($1, $2, 'owner')
+          `,
+          [store.id, user.id],
+        );
+
+        for (const language of allLanguageResult.rows) {
+          await client.query(
+            `
+              insert into store_languages (store_id, language_code, is_default, is_enabled)
+              values ($1, $2, $3, true)
+              on conflict (store_id, language_code)
+              do update set
+                is_default = excluded.is_default,
+                is_enabled = true
+            `,
+            [store.id, language.code, language.code === defaultLanguageCode],
+          );
+        }
+
+        return { user, store };
+      });
+    } catch (error) {
+      if (error?.code === "23505") {
+        throw new HttpError(409, "Email is already registered");
+      }
+      throw error;
+    }
+
+    const memberships = await getMembershipsByUserId(created.user.id);
+    res.status(201).json({
+      ...toAuthPayload(created.user, memberships),
+      accountMeta: {
+        createdAt: created.user.created_at,
+        lastLoginAt: created.user.last_login_at,
+      },
+      createdStore: {
+        id: created.store.id,
+        slug: created.store.slug,
+        brandName: created.store.brand_name,
+      },
+    });
+  }),
+);
 
 router.post(
   "/login",
