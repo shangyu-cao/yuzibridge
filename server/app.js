@@ -1,21 +1,16 @@
 import cors from "cors";
 import express from "express";
-import fs from "node:fs";
-import path from "node:path";
 import { config } from "./config.js";
 import { hasDatabase, pingDatabase } from "./db/pool.js";
 import { errorHandler, notFoundHandler } from "./middleware/error-handler.js";
 import { adminAuthRouter } from "./routes/admin-auth.js";
 import { adminRouter } from "./routes/admin.js";
 import { publicRouter } from "./routes/public.js";
+import { resolveUploadsDirectory } from "./utils/uploads-directory.js";
 import { asyncHandler } from "./utils/async-handler.js";
 
 const app = express();
-const uploadsDirectory = path.resolve(process.cwd(), "server", "uploads");
-
-if (!fs.existsSync(uploadsDirectory)) {
-  fs.mkdirSync(uploadsDirectory, { recursive: true });
-}
+const uploadsDirectory = resolveUploadsDirectory();
 
 app.use(
   cors({
