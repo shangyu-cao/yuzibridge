@@ -20,6 +20,19 @@ const DEFAULT_ALLERGEN_OPTIONS = [
   { code: "sesame", label: "sesame" },
 ];
 
+const COMMON_CURRENCY_OPTIONS = [
+  "CNY",
+  "USD",
+  "EUR",
+  "GBP",
+  "JPY",
+  "KRW",
+  "SGD",
+  "HKD",
+  "AUD",
+  "CAD",
+];
+
 const ORDER_STATUS_LABEL = {
   new: "新订单",
   accepted: "已接受",
@@ -200,6 +213,7 @@ const MerchantItemsAdmin = () => {
   const [categoryForm, setCategoryForm] = useState(EMPTY_CATEGORY_FORM);
   const [storeForm, setStoreForm] = useState(EMPTY_STORE_FORM);
   const [accountForm, setAccountForm] = useState(() => normalizeAccountForm(user, null));
+  const [isPasswordEditorOpen, setIsPasswordEditorOpen] = useState(false);
 
   const categoryNameMap = useMemo(
     () => new Map(categories.map((category) => [category.id, category.name])),
@@ -243,7 +257,7 @@ const MerchantItemsAdmin = () => {
 
   const canReorderItems =
     searchKeyword.trim() === "" &&
-    activeCategoryFilter === "all" &&
+    activeCategoryFilter !== "all" &&
     itemStatusFilter === "all" &&
     priceSort === "none";
 
@@ -405,6 +419,7 @@ const MerchantItemsAdmin = () => {
       setMemberships(payload.memberships ?? []);
       setSelectedStoreId(nextStoreId);
       setAccountForm(normalizeAccountForm(payload.user, payload.accountMeta ?? null));
+      setIsPasswordEditorOpen(false);
 
       localStorage.setItem(TOKEN_KEY, payload.token);
       localStorage.setItem(USER_KEY, JSON.stringify(payload.user));
@@ -429,6 +444,7 @@ const MerchantItemsAdmin = () => {
     setOrders([]);
     setStoreForm(EMPTY_STORE_FORM);
     setAccountForm(EMPTY_ACCOUNT_FORM);
+    setIsPasswordEditorOpen(false);
     clearCategoryDragState();
     clearItemDragState();
     resetItemForm();
@@ -457,6 +473,7 @@ const MerchantItemsAdmin = () => {
       newPassword: "",
       confirmNewPassword: "",
     }));
+    setIsPasswordEditorOpen(false);
     clearCategoryDragState();
     clearItemDragState();
   };
@@ -772,27 +789,38 @@ const MerchantItemsAdmin = () => {
       return;
     }
 
-    const sourceIndex = items.findIndex((item) => item.id === draggingItemId);
-    const targetIndex = items.findIndex((item) => item.id === targetItemId);
+    const categoryItems = filteredItems;
+    const sourceIndex = categoryItems.findIndex((item) => item.id === draggingItemId);
+    const targetIndex = categoryItems.findIndex((item) => item.id === targetItemId);
     if (sourceIndex < 0 || targetIndex < 0) {
       clearItemDragState();
       return;
     }
 
-    const reordered = [...items];
-    const [moved] = reordered.splice(sourceIndex, 1);
+    const reorderedCategoryItems = [...categoryItems];
+    const [moved] = reorderedCategoryItems.splice(sourceIndex, 1);
     let insertIndex = targetIndex + (position === "after" ? 1 : 0);
     if (sourceIndex < insertIndex) insertIndex -= 1;
     if (insertIndex < 0) insertIndex = 0;
-    if (insertIndex > reordered.length) insertIndex = reordered.length;
+    if (insertIndex > reorderedCategoryItems.length) insertIndex = reorderedCategoryItems.length;
     if (sourceIndex === insertIndex) {
       clearItemDragState();
       return;
     }
-    reordered.splice(insertIndex, 0, moved);
-    setItems(reordered);
+    reorderedCategoryItems.splice(insertIndex, 0, moved);
+    setItems((currentItems) => {
+      let cursor = 0;
+      return currentItems.map((item) => {
+        if (item.categoryId !== activeCategoryFilter) {
+          return item;
+        }
+        const nextItem = reorderedCategoryItems[cursor];
+        cursor += 1;
+        return nextItem ?? item;
+      });
+    });
     clearItemDragState();
-    await persistItemOrder(reordered, { fromDrag: true });
+    await persistItemOrder(reorderedCategoryItems, { fromDrag: true });
   };
 
   const handleToggleCategoryActive = async (category) => {
@@ -894,39 +922,26 @@ const MerchantItemsAdmin = () => {
     setErrorMessage("");
     setSuccessMessage("");
     try {
-      const displayName = accountForm.displayName.trim();
-      const accountEmail = accountForm.email.trim();
       const currentPassword = accountForm.currentPassword.trim();
       const newPassword = accountForm.newPassword.trim();
       const confirmNewPassword = accountForm.confirmNewPassword.trim();
 
-      if (!displayName) {
-        throw new Error("账户名不能为空");
+      if (!newPassword && !confirmNewPassword && !currentPassword) {
+        throw new Error("请先输入密码信息");
       }
-      if (!accountEmail) {
-        throw new Error("邮箱不能为空");
+      if (newPassword.length < 8) {
+        throw new Error("新密码至少 8 位");
       }
-      if (newPassword || confirmNewPassword) {
-        if (newPassword.length < 8) {
-          throw new Error("新密码至少 8 位");
-        }
-        if (newPassword !== confirmNewPassword) {
-          throw new Error("两次输入的新密码不一致");
-        }
-        if (!currentPassword) {
-          throw new Error("修改密码时需要填写当前密码");
-        }
+      if (newPassword !== confirmNewPassword) {
+        throw new Error("两次输入的新密码不一致");
+      }
+      if (!currentPassword) {
+        throw new Error("修改密码时需要填写当前密码");
       }
 
       const payload = {
-        displayName,
-        email: accountEmail,
-        ...(newPassword
-          ? {
-              currentPassword,
-              newPassword,
-            }
-          : {}),
+        currentPassword,
+        newPassword,
       };
 
       const response = await fetchWithAuth("/api/admin/auth/me", {
@@ -952,19 +967,18 @@ const MerchantItemsAdmin = () => {
 
       setAccountForm((current) => ({
         ...current,
-        displayName: response.user?.displayName ?? current.displayName,
-        email: response.user?.email ?? current.email,
         currentPassword: "",
         newPassword: "",
         confirmNewPassword: "",
       }));
+      setIsPasswordEditorOpen(false);
 
-      setSuccessMessage("账户信息已更新");
-      showToast("success", "账户信息已更新");
+      setSuccessMessage("密码已更新");
+      showToast("success", "密码已更新");
       await loadData();
     } catch (error) {
-      setErrorMessage(error.message || "保存账户信息失败");
-      showToast("error", error.message || "保存账户信息失败");
+      setErrorMessage(error.message || "修改密码失败");
+      showToast("error", error.message || "修改密码失败");
     } finally {
       setAccountSubmitLoading(false);
     }
@@ -1134,29 +1148,24 @@ const MerchantItemsAdmin = () => {
                 {loading ? "刷新中..." : "刷新"}
               </button>
             </div>
-            <form onSubmit={handleSubmitAccount} className="merchant-admin-form">
+            <form
+              onSubmit={(event) => {
+                if (!isPasswordEditorOpen) {
+                  event.preventDefault();
+                  return;
+                }
+                handleSubmitAccount(event);
+              }}
+              className="merchant-admin-form"
+            >
               <label>
                 账户名
-                <input
-                  type="text"
-                  value={accountForm.displayName}
-                  onChange={(event) =>
-                    setAccountForm((current) => ({ ...current, displayName: event.target.value }))
-                  }
-                  required
-                />
+                <input type="text" value={accountForm.displayName} readOnly />
               </label>
 
               <label>
-                邮箱（登录账号）
-                <input
-                  type="email"
-                  value={accountForm.email}
-                  onChange={(event) =>
-                    setAccountForm((current) => ({ ...current, email: event.target.value }))
-                  }
-                  required
-                />
+                邮箱
+                <input type="email" value={accountForm.email} readOnly />
               </label>
 
               <div className="merchant-admin-row">
@@ -1188,57 +1197,80 @@ const MerchantItemsAdmin = () => {
                 )}
               </div>
 
-              <div className="merchant-admin-account-password-box">
-                <h3>修改密码（可选）</h3>
-                <div className="merchant-admin-row">
-                  <label>
-                    当前密码
-                    <input
-                      type="password"
-                      value={accountForm.currentPassword}
-                      onChange={(event) =>
-                        setAccountForm((current) => ({
-                          ...current,
-                          currentPassword: event.target.value,
-                        }))
-                      }
-                    />
-                  </label>
-                  <label>
-                    新密码
-                    <input
-                      type="password"
-                      value={accountForm.newPassword}
-                      onChange={(event) =>
-                        setAccountForm((current) => ({
-                          ...current,
-                          newPassword: event.target.value,
-                        }))
-                      }
-                      placeholder="至少 8 位"
-                    />
-                  </label>
-                </div>
-                <label>
-                  确认新密码
-                  <input
-                    type="password"
-                    value={accountForm.confirmNewPassword}
-                    onChange={(event) =>
-                      setAccountForm((current) => ({
-                        ...current,
-                        confirmNewPassword: event.target.value,
-                      }))
-                    }
-                  />
-                </label>
-              </div>
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => {
+                  setIsPasswordEditorOpen((current) => !current);
+                  if (isPasswordEditorOpen) {
+                    setAccountForm((current) => ({
+                      ...current,
+                      currentPassword: "",
+                      newPassword: "",
+                      confirmNewPassword: "",
+                    }));
+                  }
+                }}
+              >
+                {isPasswordEditorOpen ? "取消修改密码" : "修改密码"}
+              </button>
 
-              <div className="merchant-admin-form-actions">
-                <button type="submit" disabled={accountSubmitLoading}>
-                  {accountSubmitLoading ? "保存中..." : "保存账户信息"}
-                </button>
-              </div>
+              {isPasswordEditorOpen ? (
+                <div className="merchant-admin-account-password-box">
+                  <h3>修改密码</h3>
+                  <div className="merchant-admin-row">
+                    <label>
+                      当前密码
+                      <input
+                        type="password"
+                        value={accountForm.currentPassword}
+                        onChange={(event) =>
+                          setAccountForm((current) => ({
+                            ...current,
+                            currentPassword: event.target.value,
+                          }))
+                        }
+                        required
+                      />
+                    </label>
+                    <label>
+                      新密码
+                      <input
+                        type="password"
+                        value={accountForm.newPassword}
+                        onChange={(event) =>
+                          setAccountForm((current) => ({
+                            ...current,
+                            newPassword: event.target.value,
+                          }))
+                        }
+                        placeholder="至少 8 位"
+                        required
+                      />
+                    </label>
+                  </div>
+                  <label>
+                    确认新密码
+                    <input
+                      type="password"
+                      value={accountForm.confirmNewPassword}
+                      onChange={(event) =>
+                        setAccountForm((current) => ({
+                          ...current,
+                          confirmNewPassword: event.target.value,
+                        }))
+                      }
+                      required
+                    />
+                  </label>
+
+                  <div className="merchant-admin-form-actions">
+                    <button type="submit" disabled={accountSubmitLoading}>
+                      {accountSubmitLoading ? "保存中..." : "确认修改密码"}
+                    </button>
+                  </div>
+                </div>
+              ) : null}
             </form>
           </section>
         ) : null}
@@ -1253,7 +1285,7 @@ const MerchantItemsAdmin = () => {
             </div>
             <form onSubmit={handleSubmitStoreProfile} className="merchant-admin-form">
               <label>
-                商铺名称（顾客端显示）
+                商铺名称
                 <input
                   type="text"
                   value={storeForm.brandName}
@@ -1266,18 +1298,7 @@ const MerchantItemsAdmin = () => {
 
               <div className="merchant-admin-row">
                 <label>
-                  商铺头像 URL
-                  <input
-                    type="url"
-                    value={storeForm.logoUrl}
-                    onChange={(event) =>
-                      setStoreForm((current) => ({ ...current, logoUrl: event.target.value }))
-                    }
-                    placeholder="https://..."
-                  />
-                </label>
-                <label>
-                  上传商铺头像
+                  商铺头像
                   <input
                     className="merchant-admin-file-input"
                     type="file"
@@ -1298,7 +1319,7 @@ const MerchantItemsAdmin = () => {
               ) : null}
 
               <label>
-                商铺地址（顾客端页脚显示）
+                商铺地址
                 <textarea
                   rows={3}
                   value={storeForm.addressText}
@@ -1310,7 +1331,7 @@ const MerchantItemsAdmin = () => {
 
               <div className="merchant-admin-row">
                 <label>
-                  联系电话（顾客端显示）
+                  联系电话
                   <input
                     type="text"
                     value={storeForm.contactPhone}
@@ -1321,7 +1342,7 @@ const MerchantItemsAdmin = () => {
                   />
                 </label>
                 <label>
-                  联系邮箱（顾客端显示）
+                  联系邮箱
                   <input
                     type="email"
                     value={storeForm.contactEmail}
@@ -1399,13 +1420,11 @@ const MerchantItemsAdmin = () => {
                   <button type="button" className="secondary" onClick={loadData} disabled={loading}>
                     {loading ? "刷新中..." : "刷新"}
                   </button>
-                  <button type="button" className="secondary" onClick={() => persistCategoryOrder(categories)} disabled={categorySortSaving}>
-                    {categorySortSaving ? "保存中..." : "保存当前顺序"}
-                  </button>
                 </div>
               </div>
               <p className="merchant-admin-drag-tip">
                 拖拽分类可自动保存顺序：放到条目上半区=插入前，下半区=插入后。
+                {categorySortSaving ? "（保存中...）" : ""}
               </p>
 
               {!categories.length ? (
@@ -1510,9 +1529,9 @@ const MerchantItemsAdmin = () => {
                   <label>
                     价格
                     <input
-                      type="number"
-                      min="0"
-                      step="0.01"
+                      type="text"
+                      inputMode="decimal"
+                      placeholder="例如 58.00"
                       value={itemForm.price}
                       onChange={(event) =>
                         setItemForm((current) => ({ ...current, price: event.target.value }))
@@ -1525,41 +1544,35 @@ const MerchantItemsAdmin = () => {
                     <input
                       type="text"
                       maxLength={3}
+                      list="merchant-admin-currency-options"
                       value={itemForm.currencyCode}
                       onChange={(event) =>
                         setItemForm((current) => ({ ...current, currencyCode: event.target.value }))
                       }
+                      placeholder="输入或选择货币代码"
                       required
                     />
+                    <datalist id="merchant-admin-currency-options">
+                      {COMMON_CURRENCY_OPTIONS.map((currencyCode) => (
+                        <option key={currencyCode} value={currencyCode} />
+                      ))}
+                    </datalist>
                   </label>
                 </div>
 
-                <div className="merchant-admin-row">
-                  <label>
-                    排序
-                    <input
-                      type="number"
-                      min="0"
-                      value={itemForm.sortOrder}
-                      onChange={(event) =>
-                        setItemForm((current) => ({ ...current, sortOrder: event.target.value }))
-                      }
-                    />
-                  </label>
-                  <label>
-                    图片
-                    <input
-                      className="merchant-admin-file-input"
-                      type="file"
-                      accept="image/png,image/jpeg,image/webp,image/gif"
-                      disabled={uploadLoading}
-                      onChange={(event) => handleImageUpload(event.target.files?.[0])}
-                    />
-                    <small className="merchant-admin-help">
-                      {uploadLoading ? "上传中..." : "支持 jpeg/png/webp/gif，最大 5MB"}
-                    </small>
-                  </label>
-                </div>
+                <label>
+                  图片
+                  <input
+                    className="merchant-admin-file-input"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    disabled={uploadLoading}
+                    onChange={(event) => handleImageUpload(event.target.files?.[0])}
+                  />
+                  <small className="merchant-admin-help">
+                    {uploadLoading ? "上传中..." : "支持 jpeg/png/webp/gif，最大 5MB"}
+                  </small>
+                </label>
 
                 {itemForm.imageUrl ? (
                   <div className="merchant-admin-image-preview">
@@ -1633,14 +1646,6 @@ const MerchantItemsAdmin = () => {
                   <button type="button" className="secondary" onClick={loadData} disabled={loading}>
                     {loading ? "刷新中..." : "刷新"}
                   </button>
-                  <button
-                    type="button"
-                    className="secondary"
-                    onClick={() => persistItemOrder(items)}
-                    disabled={itemSortSaving || !items.length}
-                  >
-                    {itemSortSaving ? "保存中..." : "保存当前菜品顺序"}
-                  </button>
                 </div>
               </div>
 
@@ -1706,7 +1711,8 @@ const MerchantItemsAdmin = () => {
               <p className="merchant-admin-drag-tip">
                 {canReorderItems
                   ? "拖拽菜品可自动保存顺序：放到条目上半区=插入前，下半区=插入后。"
-                  : "当前启用了搜索或筛选，已暂停拖拽排序。清空搜索并恢复“全部/默认”后可拖拽。"}
+                  : "仅在按分类查看菜品时可拖拽排序；状态筛选、价格排序或搜索时不可拖拽。"}
+                {itemSortSaving ? "（保存中...）" : ""}
               </p>
 
               {!filteredItems.length ? (
