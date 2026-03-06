@@ -45,9 +45,14 @@ router.get(
   asyncHandler(async (req, res) => {
     const { storeSlug } = storeSlugSchema.parse(req.params);
     const { lang } = menuQuerySchema.parse(req.query);
+    const dynamicTranslateRaw =
+      typeof req.query.dynamicTranslate === "string" ? req.query.dynamicTranslate.toLowerCase() : "";
+    const dynamicTranslate = ["1", "true", "yes", "on"].includes(dynamicTranslateRaw);
+
     const payload = await getPublicMenuBySlug({
       storeSlug,
       requestedLanguage: lang,
+      dynamicTranslate,
     });
     res.json(payload);
   }),

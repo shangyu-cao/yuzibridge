@@ -1,5 +1,119 @@
 import { query, withTransaction } from "../db/pool.js";
+import { config } from "../config.js";
 import { HttpError } from "../utils/http-error.js";
+
+const isSameLanguage = (left, right) => {
+  if (!left || !right) return false;
+  const a = left.toLowerCase();
+  const b = right.toLowerCase();
+  if (a === b) return true;
+  return a.split("-")[0] === b.split("-")[0];
+};
+
+const decodeHtmlEntities = (value) => {
+  if (!value) return value;
+  return value
+    .replaceAll("&amp;", "&")
+    .replaceAll("&lt;", "<")
+    .replaceAll("&gt;", ">")
+    .replaceAll("&quot;", '"')
+    .replaceAll("&#39;", "'");
+};
+
+const translateTextsWithGoogle = async ({ texts, targetLanguage, sourceLanguage }) => {
+  if (!texts.length) return [];
+  if (!config.googleTranslateApiKey) {
+    throw new HttpError(503, "Google Translate API key is not configured");
+  }
+
+  const endpoint = new URL("https://translation.googleapis.com/language/translate/v2");
+  endpoint.searchParams.set("key", config.googleTranslateApiKey);
+
+  const response = await globalThis.fetch(endpoint, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({
+      q: texts,
+      target: targetLanguage,
+      source: sourceLanguage,
+      format: "text",
+    }),
+  });
+
+  const payload = await response.json().catch(() => null);
+  if (!response.ok) {
+    const message = payload?.error?.message || `Google Translate request failed (${response.status})`;
+    throw new HttpError(502, message);
+  }
+
+  const translatedRows = payload?.data?.translations;
+  if (!Array.isArray(translatedRows) || translatedRows.length !== texts.length) {
+    throw new HttpError(502, "Unexpected Google Translate response");
+  }
+
+  return translatedRows.map((row) => decodeHtmlEntities(row?.translatedText ?? ""));
+};
+
+const translatePublicMenuPayload = async (menuPayload, targetLanguage) => {
+  const sourceLanguage = menuPayload.fallbackLanguage || menuPayload.lang;
+  if (isSameLanguage(sourceLanguage, targetLanguage)) {
+    return {
+      ...menuPayload,
+      lang: targetLanguage,
+    };
+  }
+
+  const translated = structuredClone(menuPayload);
+  const refs = [];
+
+  const registerTextRef = (obj, key) => {
+    if (!obj) return;
+    const text = obj[key];
+    if (typeof text !== "string") return;
+    if (!text.trim()) return;
+    refs.push({ obj, key, text });
+  };
+
+  registerTextRef(translated.store, "name");
+  registerTextRef(translated.store, "address");
+  for (const link of translated.store.socialLinks ?? []) {
+    registerTextRef(link, "platform");
+  }
+
+  for (const category of translated.categories ?? []) {
+    registerTextRef(category, "name");
+    for (const item of category.items ?? []) {
+      registerTextRef(item, "name");
+      registerTextRef(item, "description");
+      if (Array.isArray(item.allergens)) {
+        for (let index = 0; index < item.allergens.length; index += 1) {
+          if (typeof item.allergens[index] !== "string") continue;
+          if (!item.allergens[index].trim()) continue;
+          refs.push({
+            obj: item.allergens,
+            key: index,
+            text: item.allergens[index],
+          });
+        }
+      }
+    }
+  }
+
+  const translatedTexts = await translateTextsWithGoogle({
+    texts: refs.map((entry) => entry.text),
+    targetLanguage,
+    sourceLanguage,
+  });
+
+  refs.forEach((entry, index) => {
+    entry.obj[entry.key] = translatedTexts[index];
+  });
+
+  translated.lang = targetLanguage;
+  return translated;
+};
 
 export const getStoreLanguagesBySlug = async (storeSlug) => {
   const storeResult = await query(
@@ -45,7 +159,7 @@ export const getStoreLanguagesBySlug = async (storeSlug) => {
   };
 };
 
-export const getPublicMenuBySlug = async ({ storeSlug, requestedLanguage }) => {
+export const getPublicMenuBySlug = async ({ storeSlug, requestedLanguage, dynamicTranslate = false }) => {
   const storeResult = await query(
     `
       select
@@ -70,7 +184,8 @@ export const getPublicMenuBySlug = async ({ storeSlug, requestedLanguage }) => {
   }
 
   const store = storeResult.rows[0];
-  const language = requestedLanguage || store.default_language_code;
+  const targetLanguage = requestedLanguage || store.default_language_code;
+  const language = dynamicTranslate ? store.default_language_code : targetLanguage;
 
   const socialResult = await query(
     `
@@ -178,7 +293,7 @@ export const getPublicMenuBySlug = async ({ storeSlug, requestedLanguage }) => {
     });
   }
 
-  return {
+  const payload = {
     store: {
       id: store.id,
       slug: store.slug,
@@ -193,6 +308,12 @@ export const getPublicMenuBySlug = async ({ storeSlug, requestedLanguage }) => {
     fallbackLanguage: store.default_language_code,
     categories,
   };
+
+  if (dynamicTranslate) {
+    return translatePublicMenuPayload(payload, targetLanguage);
+  }
+
+  return payload;
 };
 
 export const createPublicOrderBySlug = async ({ storeSlug, tableCode, note, items }) => {

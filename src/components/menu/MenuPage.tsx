@@ -98,6 +98,72 @@ const FALLBACK_LANGUAGES: LanguageOption[] = [
   { code: "ja-JP", label: "Japanese", nativeLabel: "日本語" },
 ];
 
+const normalizeLanguageCode = (value: string) => {
+  if (!value) return "";
+  const trimmed = value.trim();
+  if (!trimmed) return "";
+  const parts = trimmed.split("-");
+  if (parts.length === 1) return parts[0].toLowerCase();
+  return `${parts[0].toLowerCase()}-${parts[1].toUpperCase()}`;
+};
+
+const getBrowserPreferredLanguageCodes = (): string[] => {
+  if (typeof window === "undefined") return [];
+  const candidates = Array.isArray(window.navigator.languages) && window.navigator.languages.length
+    ? window.navigator.languages
+    : [window.navigator.language];
+  return candidates.map(normalizeLanguageCode).filter(Boolean);
+};
+
+const findBestMatchingLanguageCode = (targetCode: string, options: LanguageOption[]): string | null => {
+  const normalizedTarget = normalizeLanguageCode(targetCode);
+  if (!normalizedTarget) return null;
+  const exact = options.find(
+    (option) => normalizeLanguageCode(option.code) === normalizedTarget,
+  );
+  if (exact) return exact.code;
+
+  const targetBase = normalizedTarget.split("-")[0];
+  const baseMatch = options.find((option) => normalizeLanguageCode(option.code).split("-")[0] === targetBase);
+  return baseMatch?.code ?? null;
+};
+
+const resolveInitialLanguage = (
+  options: LanguageOption[],
+  fallbackLanguageCode: string,
+): { initialCode: string; needsBrowserOption: boolean } => {
+  const browserPreferred = getBrowserPreferredLanguageCodes();
+  for (const browserCode of browserPreferred) {
+    const matched = findBestMatchingLanguageCode(browserCode, options);
+    if (matched) {
+      return { initialCode: matched, needsBrowserOption: false };
+    }
+  }
+
+  const primaryBrowser = browserPreferred[0];
+  if (primaryBrowser) {
+    return { initialCode: primaryBrowser, needsBrowserOption: true };
+  }
+
+  return { initialCode: fallbackLanguageCode, needsBrowserOption: false };
+};
+
+const withBrowserLanguageOption = (
+  options: LanguageOption[],
+  browserCode: string,
+  needsBrowserOption: boolean,
+): LanguageOption[] => {
+  if (!needsBrowserOption) return options;
+  return [
+    {
+      code: browserCode,
+      label: browserCode,
+      nativeLabel: browserCode,
+    },
+    ...options,
+  ];
+};
+
 const UI_COPY: Record<string, UiCopy> = {
   "zh-CN": {
     categoryTitle: "分类",
@@ -242,6 +308,15 @@ const fetchJson = async <T,>(path: string): Promise<T> => {
   return response.json();
 };
 
+const buildMenuPath = (storeSlug: string, languageCode: string, dynamicTranslate: boolean) => {
+  const params = new URLSearchParams();
+  params.set("lang", languageCode);
+  if (dynamicTranslate) {
+    params.set("dynamicTranslate", "true");
+  }
+  return `/api/public/stores/${encodeURIComponent(storeSlug)}/menu?${params.toString()}`;
+};
+
 const postJson = async <T,>(path: string, body: unknown): Promise<T> => {
   const response = await fetch(`${API_BASE_URL}${path}`, {
     method: "POST",
@@ -298,7 +373,9 @@ const formatMoneyMinor = (priceMinor: number, currency: string, locale: string) 
 };
 
 const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
-  const [selectedLanguage, setSelectedLanguage] = useState<string>("zh-CN");
+  const [selectedLanguage, setSelectedLanguage] = useState<string>(
+    normalizeLanguageCode(getBrowserPreferredLanguageCodes()[0] || "zh-CN"),
+  );
   const [languages, setLanguages] = useState<LanguageOption[]>(FALLBACK_LANGUAGES);
   const [menuPayload, setMenuPayload] = useState<PublicMenuResponse | null>(null);
   const [activeCategoryId, setActiveCategoryId] = useState<string>("");
@@ -327,17 +404,23 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
         }
 
         const options = toLanguageOptions(payload);
-        setLanguages(options);
-
-        const defaultOption = options.find((option) => option.code === payload.defaultLanguage);
-        setSelectedLanguage(defaultOption?.code ?? options[0]?.code ?? "zh-CN");
+        const fallbackCode = options.find((option) => option.code === payload.defaultLanguage)?.code
+          ?? options[0]?.code
+          ?? "zh-CN";
+        const { initialCode, needsBrowserOption } = resolveInitialLanguage(options, fallbackCode);
+        const nextOptions = withBrowserLanguageOption(options, initialCode, needsBrowserOption);
+        setLanguages(nextOptions);
+        setSelectedLanguage(initialCode);
       } catch (_error) {
         if (ignore) {
           return;
         }
 
-        setLanguages(FALLBACK_LANGUAGES);
-        setSelectedLanguage("zh-CN");
+        const fallbackCode = "zh-CN";
+        const { initialCode, needsBrowserOption } = resolveInitialLanguage(FALLBACK_LANGUAGES, fallbackCode);
+        const nextOptions = withBrowserLanguageOption(FALLBACK_LANGUAGES, initialCode, needsBrowserOption);
+        setLanguages(nextOptions);
+        setSelectedLanguage(initialCode);
       }
     };
 
@@ -366,9 +449,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
     const loadMenu = async () => {
       try {
         const payload = await fetchJson<PublicMenuResponse>(
-          `/api/public/stores/${encodeURIComponent(storeSlug)}/menu?lang=${encodeURIComponent(
-            selectedLanguage,
-          )}`,
+          buildMenuPath(storeSlug, selectedLanguage, true),
         );
 
         if (ignore) {
@@ -376,21 +457,34 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
         }
 
         setMenuPayload(payload);
-      } catch (_error) {
+      } catch (_dynamicTranslateError) {
         if (ignore) {
           return;
         }
 
-        setMenuPayload({
-          ...DEMO_MENU,
-          store: {
-            ...DEMO_MENU.store,
-            slug: storeSlug,
-          },
-          lang: selectedLanguage,
-        });
-        setErrorMessage(getUiCopy(selectedLanguage).errorText);
-        setUsingFallback(true);
+        try {
+          const payload = await fetchJson<PublicMenuResponse>(
+            buildMenuPath(storeSlug, selectedLanguage, false),
+          );
+          if (ignore) {
+            return;
+          }
+          setMenuPayload(payload);
+        } catch (_menuError) {
+          if (ignore) {
+            return;
+          }
+          setMenuPayload({
+            ...DEMO_MENU,
+            store: {
+              ...DEMO_MENU.store,
+              slug: storeSlug,
+            },
+            lang: selectedLanguage,
+          });
+          setErrorMessage(getUiCopy(selectedLanguage).errorText);
+          setUsingFallback(true);
+        }
       } finally {
         if (!ignore) {
           setIsLoading(false);
