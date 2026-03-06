@@ -1,0 +1,36 @@
+{
+  "rewrites": [
+    {
+      "source": "/merchant-admin",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/merchant-admin/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/merchant-register",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/merchant-register/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/menu/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/menu",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/menu-preview/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/menu-preview",
+      "destination": "/index.html"
+    }
+  ]
+}
