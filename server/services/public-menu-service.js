@@ -31,6 +31,19 @@ const LANGUAGE_PRIORITY_ORDER = [
   "ar-SA",
 ];
 
+const toGoogleLanguageCode = (code) => {
+  if (!code) return "";
+  const normalized = String(code).trim();
+  if (!normalized) return "";
+
+  const lowered = normalized.toLowerCase();
+  if (lowered === "zh-cn" || lowered === "zh-hans") return "zh-CN";
+  if (lowered === "zh-tw" || lowered === "zh-hant") return "zh-TW";
+
+  const base = lowered.split("-")[0];
+  return base;
+};
+
 const translateTextsWithGoogle = async ({ texts, targetLanguage, sourceLanguage }) => {
   if (!texts.length) return [];
   if (!config.googleTranslateApiKey) {
@@ -114,8 +127,8 @@ const translatePublicMenuPayload = async (menuPayload, targetLanguage) => {
 
   const translatedTexts = await translateTextsWithGoogle({
     texts: refs.map((entry) => entry.text),
-    targetLanguage,
-    sourceLanguage,
+    targetLanguage: toGoogleLanguageCode(targetLanguage),
+    sourceLanguage: toGoogleLanguageCode(sourceLanguage),
   });
 
   refs.forEach((entry, index) => {

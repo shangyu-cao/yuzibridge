@@ -11,6 +11,7 @@ type MenuHeaderProps = {
   logoUrl?: string;
   selectedLanguage: string;
   languages: LanguageOption[];
+  languageLabel?: string;
   onLanguageChange: (languageCode: string) => void;
 };
 
@@ -19,6 +20,7 @@ const MenuHeader: React.FC<MenuHeaderProps> = ({
   logoUrl,
   selectedLanguage,
   languages,
+  languageLabel = "Language",
   onLanguageChange,
 }) => {
   return (
@@ -36,7 +38,7 @@ const MenuHeader: React.FC<MenuHeaderProps> = ({
 
       <div className="menu-header__language">
         <label htmlFor="menu-language-select" className="menu-header__language-label">
-          Language
+          {languageLabel}
         </label>
         <select
           id="menu-language-select"

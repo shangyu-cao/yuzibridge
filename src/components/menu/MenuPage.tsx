@@ -73,6 +73,7 @@ type MenuPageProps = {
 };
 
 type UiCopy = {
+  languageLabel: string;
   categoryTitle: string;
   noItemsText: string;
   loadingText: string;
@@ -182,6 +183,7 @@ const withBrowserLanguageOption = (
 
 const UI_COPY: Record<string, UiCopy> = {
   "zh-CN": {
+    languageLabel: "语言",
     categoryTitle: "分类",
     noItemsText: "该分类暂无菜品。",
     loadingText: "正在加载菜单...",
@@ -199,6 +201,7 @@ const UI_COPY: Record<string, UiCopy> = {
     orderSubmitErrorText: "下单失败，请重试",
   },
   "en-US": {
+    languageLabel: "Language",
     categoryTitle: "Categories",
     noItemsText: "No dishes in this category yet.",
     loadingText: "Loading menu...",
@@ -216,6 +219,7 @@ const UI_COPY: Record<string, UiCopy> = {
     orderSubmitErrorText: "Failed to submit order. Please retry.",
   },
   "ja-JP": {
+    languageLabel: "言語",
     categoryTitle: "カテゴリ",
     noItemsText: "このカテゴリには料理がありません。",
     loadingText: "メニューを読み込み中...",
@@ -231,6 +235,97 @@ const UI_COPY: Record<string, UiCopy> = {
     orderSubmittingText: "送信中...",
     orderSubmittedText: "注文が完了しました。注文ID: ",
     orderSubmitErrorText: "注文に失敗しました。再試行してください。",
+  },
+  "ko-KR": {
+    languageLabel: "언어",
+    categoryTitle: "카테고리",
+    noItemsText: "이 카테고리에 메뉴가 없습니다.",
+    loadingText: "메뉴를 불러오는 중...",
+    errorText: "메뉴 데이터를 불러오지 못했습니다",
+    fallbackText: "데모 데이터를 표시 중입니다. 백엔드 서비스와 DB 연결을 확인하세요.",
+    retryText: "다시 시도",
+    addToOrderText: "장바구니에 추가",
+    orderLabel: "주문",
+    orderItemsLabel: "개",
+    orderEmptyText: "장바구니가 비어 있습니다",
+    orderConfirmText: "확인",
+    tableCodeLabel: "테이블",
+    orderSubmittingText: "제출 중...",
+    orderSubmittedText: "주문이 접수되었습니다. 주문 ID: ",
+    orderSubmitErrorText: "주문 제출에 실패했습니다. 다시 시도해 주세요.",
+  },
+  "es-ES": {
+    languageLabel: "Idioma",
+    categoryTitle: "Categorías",
+    noItemsText: "No hay platos en esta categoría.",
+    loadingText: "Cargando menú...",
+    errorText: "Error al cargar los datos del menú",
+    fallbackText: "Mostrando datos de demostración. Verifique el backend y la conexión de la base de datos.",
+    retryText: "Reintentar",
+    addToOrderText: "Agregar a la cesta",
+    orderLabel: "Pedido",
+    orderItemsLabel: "artículos",
+    orderEmptyText: "Tu cesta está vacía",
+    orderConfirmText: "Confirmar",
+    tableCodeLabel: "Mesa",
+    orderSubmittingText: "Enviando...",
+    orderSubmittedText: "Pedido enviado. ID del pedido: ",
+    orderSubmitErrorText: "No se pudo enviar el pedido. Inténtalo de nuevo.",
+  },
+  "fr-FR": {
+    languageLabel: "Langue",
+    categoryTitle: "Catégories",
+    noItemsText: "Aucun plat dans cette catégorie.",
+    loadingText: "Chargement du menu...",
+    errorText: "Échec du chargement du menu",
+    fallbackText:
+      "Affichage des données de démonstration. Vérifiez le service backend et la connexion à la base de données.",
+    retryText: "Réessayer",
+    addToOrderText: "Ajouter au panier",
+    orderLabel: "Commande",
+    orderItemsLabel: "articles",
+    orderEmptyText: "Votre panier est vide",
+    orderConfirmText: "Confirmer",
+    tableCodeLabel: "Table",
+    orderSubmittingText: "Envoi...",
+    orderSubmittedText: "Commande envoyée. ID : ",
+    orderSubmitErrorText: "Échec de l'envoi. Veuillez réessayer.",
+  },
+  "de-DE": {
+    languageLabel: "Sprache",
+    categoryTitle: "Kategorien",
+    noItemsText: "Keine Gerichte in dieser Kategorie.",
+    loadingText: "Menü wird geladen...",
+    errorText: "Menüdaten konnten nicht geladen werden",
+    fallbackText: "Demo-Daten werden angezeigt. Bitte Backend und Datenbankverbindung prüfen.",
+    retryText: "Erneut versuchen",
+    addToOrderText: "In den Warenkorb",
+    orderLabel: "Bestellung",
+    orderItemsLabel: "Artikel",
+    orderEmptyText: "Ihr Warenkorb ist leer",
+    orderConfirmText: "Bestätigen",
+    tableCodeLabel: "Tisch",
+    orderSubmittingText: "Wird gesendet...",
+    orderSubmittedText: "Bestellung gesendet. Bestell-ID: ",
+    orderSubmitErrorText: "Bestellung fehlgeschlagen. Bitte erneut versuchen.",
+  },
+  "ar-SA": {
+    languageLabel: "اللغة",
+    categoryTitle: "الفئات",
+    noItemsText: "لا توجد أطباق في هذه الفئة.",
+    loadingText: "جارٍ تحميل القائمة...",
+    errorText: "تعذر تحميل بيانات القائمة",
+    fallbackText: "يتم عرض بيانات تجريبية. يرجى التحقق من الخادم وقاعدة البيانات.",
+    retryText: "إعادة المحاولة",
+    addToOrderText: "أضف إلى السلة",
+    orderLabel: "الطلب",
+    orderItemsLabel: "عناصر",
+    orderEmptyText: "السلة فارغة",
+    orderConfirmText: "تأكيد",
+    tableCodeLabel: "الطاولة",
+    orderSubmittingText: "جارٍ الإرسال...",
+    orderSubmittedText: "تم إرسال الطلب. رقم الطلب: ",
+    orderSubmitErrorText: "فشل إرسال الطلب. يرجى المحاولة مرة أخرى.",
   },
 };
 
@@ -306,12 +401,18 @@ const titleCase = (value: string) =>
     .join(" ");
 
 const getUiCopy = (languageCode: string): UiCopy => {
-  if (languageCode.startsWith("zh")) {
-    return UI_COPY["zh-CN"];
+  const normalized = normalizeLanguageCode(languageCode);
+  if (UI_COPY[normalized]) {
+    return UI_COPY[normalized];
   }
-  if (languageCode.startsWith("ja")) {
-    return UI_COPY["ja-JP"];
-  }
+  const base = normalized.split("-")[0];
+  if (base === "zh") return UI_COPY["zh-CN"];
+  if (base === "ja") return UI_COPY["ja-JP"];
+  if (base === "ko") return UI_COPY["ko-KR"];
+  if (base === "es") return UI_COPY["es-ES"];
+  if (base === "fr") return UI_COPY["fr-FR"];
+  if (base === "de") return UI_COPY["de-DE"];
+  if (base === "ar") return UI_COPY["ar-SA"];
   return UI_COPY["en-US"];
 };
 
@@ -670,6 +771,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
           logoUrl={menuPayload?.store.logoUrl ?? undefined}
           selectedLanguage={selectedLanguage}
           languages={languages}
+          languageLabel={uiCopy.languageLabel}
           onLanguageChange={setSelectedLanguage}
         />
 
