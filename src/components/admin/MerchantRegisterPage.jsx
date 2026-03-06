@@ -1,7 +1,21 @@
 import React, { useState } from "react";
 import "./merchant-register.css";
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000").replace(/\/$/, "");
+const resolveApiBaseUrl = () => {
+  const envBase = import.meta.env.VITE_API_BASE_URL?.trim();
+  if (envBase) return envBase.replace(/\/$/, "");
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (["localhost", "127.0.0.1", "0.0.0.0"].includes(hostname)) {
+      return "http://localhost:4000";
+    }
+    return window.location.origin.replace(/\/$/, "");
+  }
+  return "http://localhost:4000";
+};
+
+const API_BASE_URL = resolveApiBaseUrl();
+const NETWORK_ERROR_TEXT = `无法连接后端服务（${API_BASE_URL}）`;
 
 const TOKEN_KEY = "merchant_admin_token";
 const USER_KEY = "merchant_admin_user";
@@ -50,18 +64,26 @@ const MerchantRegisterPage = () => {
 
     setLoading(true);
     try {
-      const response = await fetch(`${API_BASE_URL}/api/admin/auth/register`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          storeName: trimmedStoreName,
-          displayName: trimmedDisplayName,
-          email: trimmedEmail,
-          password,
-        }),
-      });
+      let response;
+      try {
+        response = await fetch(`${API_BASE_URL}/api/admin/auth/register`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            storeName: trimmedStoreName,
+            displayName: trimmedDisplayName,
+            email: trimmedEmail,
+            password,
+          }),
+        });
+      } catch (error) {
+        if (error instanceof TypeError) {
+          throw new Error(NETWORK_ERROR_TEXT);
+        }
+        throw error;
+      }
 
       const payload = await response.json().catch(() => ({}));
       if (!response.ok) {
