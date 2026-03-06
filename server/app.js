@@ -31,7 +31,16 @@ app.get(
       });
     }
 
-    await pingDatabase();
+    try {
+      await pingDatabase();
+    } catch (error) {
+      return res.status(500).json({
+        status: "error",
+        message: "Database connection failed",
+        details: error instanceof Error ? error.message : "Unknown database error",
+      });
+    }
+
     return res.json({
       status: "ok",
     });
