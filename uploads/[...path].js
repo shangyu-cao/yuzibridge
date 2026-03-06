@@ -13,6 +13,22 @@ const HOP_BY_HOP_HEADERS = new Set([
   "host",
 ]);
 
+const normalizeRequestUrl = (req) => {
+  const incomingUrl = new URL(req.url, "http://localhost");
+  const rewrittenPath =
+    incomingUrl.searchParams.get("path") ?? incomingUrl.searchParams.get("...path");
+
+  if (!rewrittenPath) {
+    return;
+  }
+
+  const normalizedPath = String(rewrittenPath).replace(/^\/+/, "");
+  incomingUrl.pathname = `/uploads/${normalizedPath}`;
+  incomingUrl.searchParams.delete("path");
+  incomingUrl.searchParams.delete("...path");
+  req.url = `${incomingUrl.pathname}${incomingUrl.search}`;
+};
+
 const resolveProxyTarget = () => {
   const target =
     process.env.BACKEND_API_BASE_URL ||
@@ -36,6 +52,8 @@ const shouldUseLocalApp = (req, proxyTarget) => {
 };
 
 const proxyHandler = async (req, res) => {
+  normalizeRequestUrl(req);
+
   const proxyTarget = resolveProxyTarget();
   if (shouldUseLocalApp(req, proxyTarget)) {
     app(req, res);
