@@ -455,6 +455,7 @@ const MerchantItemsAdmin = () => {
     localStorage.removeItem(USER_KEY);
     localStorage.removeItem(MEMBERSHIPS_KEY);
     localStorage.removeItem(STORE_KEY);
+    window.location.assign("/");
   };
 
   const handleStoreChange = (storeId) => {
