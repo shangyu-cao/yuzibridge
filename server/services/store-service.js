@@ -3,7 +3,18 @@ import { HttpError } from "../utils/http-error.js";
 export const getActiveStoreForAdmin = async (dbClient, storeId) => {
   const result = await dbClient.query(
     `
-      select id, slug, brand_name, default_language_code, default_currency_code, is_active
+      select
+        id,
+        slug,
+        legal_name,
+        brand_name,
+        logo_url,
+        default_language_code,
+        default_currency_code,
+        address_text,
+        contact_phone,
+        contact_email,
+        is_active
       from stores
       where id = $1
       limit 1

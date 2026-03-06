@@ -45,9 +45,11 @@ router.post(
 
     const membershipResult = await query(
       `
-        select store_id, role
-        from store_memberships
-        where user_id = $1
+        select sm.store_id, sm.role, s.slug as store_slug, s.brand_name as store_brand_name
+        from store_memberships sm
+        join stores s on s.id = sm.store_id
+        where sm.user_id = $1
+        order by s.created_at asc
       `,
       [user.id],
     );

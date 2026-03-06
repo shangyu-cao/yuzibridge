@@ -122,6 +122,14 @@ const updateItemSchema = z.object({
   allergenCodes: z.array(z.string().trim().min(1).max(100)).max(40).optional(),
 });
 
+const updateStoreProfileSchema = z.object({
+  brandName: z.string().trim().min(1).max(160).optional(),
+  logoUrl: z.string().url().nullable().optional(),
+  addressText: z.string().trim().max(2000).nullable().optional(),
+  contactPhone: z.string().trim().max(120).nullable().optional(),
+  contactEmail: z.string().trim().email().max(320).nullable().optional(),
+});
+
 const updateOrderStatusSchema = z.object({
   status: z.enum(["accepted", "preparing", "ready"]),
 });
@@ -256,6 +264,91 @@ const loadAdminItem = async ({ dbClient, storeId, itemId, languageCode, defaultL
     languageCode,
   };
 };
+
+const toAdminStoreProfile = (store) => ({
+  id: store.id,
+  slug: store.slug,
+  legalName: store.legal_name,
+  brandName: store.brand_name,
+  logoUrl: store.logo_url,
+  defaultLanguageCode: store.default_language_code,
+  defaultCurrencyCode: store.default_currency_code,
+  addressText: store.address_text,
+  contactPhone: store.contact_phone,
+  contactEmail: store.contact_email,
+});
+
+router.get(
+  "/stores/:storeId/profile",
+  requireStoreRole(readOnlyRoles),
+  asyncHandler(async (req, res) => {
+    const { storeId } = storeParamsSchema.parse(req.params);
+    const store = await getActiveStoreForAdmin({ query }, storeId);
+    res.json(toAdminStoreProfile(store));
+  }),
+);
+
+router.put(
+  "/stores/:storeId/profile",
+  requireStoreRole(editRoles),
+  asyncHandler(async (req, res) => {
+    const { storeId } = storeParamsSchema.parse(req.params);
+    const payload = updateStoreProfileSchema.parse(req.body);
+
+    const hasUpdate =
+      payload.brandName !== undefined ||
+      payload.logoUrl !== undefined ||
+      payload.addressText !== undefined ||
+      payload.contactPhone !== undefined ||
+      payload.contactEmail !== undefined;
+
+    if (!hasUpdate) {
+      throw new HttpError(400, "No update fields provided");
+    }
+
+    await getActiveStoreForAdmin({ query }, storeId);
+
+    const updateFragments = [];
+    const updateValues = [];
+    const appendUpdate = (column, value) => {
+      updateValues.push(value);
+      updateFragments.push(`${column} = $${updateValues.length}`);
+    };
+
+    if (payload.brandName !== undefined) appendUpdate("brand_name", payload.brandName);
+    if (payload.logoUrl !== undefined) appendUpdate("logo_url", payload.logoUrl);
+    if (payload.addressText !== undefined) appendUpdate("address_text", payload.addressText);
+    if (payload.contactPhone !== undefined) appendUpdate("contact_phone", payload.contactPhone);
+    if (payload.contactEmail !== undefined) appendUpdate("contact_email", payload.contactEmail);
+
+    updateValues.push(storeId);
+    const updatedStoreResult = await query(
+      `
+        update stores
+        set ${updateFragments.join(", ")}
+        where id = $${updateValues.length}
+        returning
+          id,
+          slug,
+          legal_name,
+          brand_name,
+          logo_url,
+          default_language_code,
+          default_currency_code,
+          address_text,
+          contact_phone,
+          contact_email
+      `,
+      updateValues,
+    );
+
+    if (updatedStoreResult.rowCount === 0) {
+      throw new HttpError(404, "Store not found");
+    }
+
+    res.json(toAdminStoreProfile(updatedStoreResult.rows[0]));
+  }),
+);
 
 router.get(
   "/stores/:storeId/allergens",

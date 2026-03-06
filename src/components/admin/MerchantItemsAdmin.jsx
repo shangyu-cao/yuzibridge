@@ -46,6 +46,14 @@ const EMPTY_CATEGORY_FORM = {
   isActive: true,
 };
 
+const EMPTY_STORE_FORM = {
+  brandName: "",
+  logoUrl: "",
+  addressText: "",
+  contactPhone: "",
+  contactEmail: "",
+};
+
 const parseStoredJson = (value, fallback) => {
   if (!value) return fallback;
   try {
@@ -116,6 +124,14 @@ const normalizeCategoryForm = (category) => ({
   isActive: Boolean(category.isActive),
 });
 
+const normalizeStoreForm = (store) => ({
+  brandName: store?.brandName ?? "",
+  logoUrl: store?.logoUrl ?? "",
+  addressText: store?.addressText ?? "",
+  contactPhone: store?.contactPhone ?? "",
+  contactEmail: store?.contactEmail ?? "",
+});
+
 const MerchantItemsAdmin = () => {
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || "");
   const [user, setUser] = useState(() => parseStoredJson(localStorage.getItem(USER_KEY), null));
@@ -141,10 +157,14 @@ const MerchantItemsAdmin = () => {
   const [draggingCategoryId, setDraggingCategoryId] = useState("");
   const [dropHint, setDropHint] = useState({ categoryId: "", position: "before" });
   const [categorySortSaving, setCategorySortSaving] = useState(false);
+  const [draggingItemId, setDraggingItemId] = useState("");
+  const [itemDropHint, setItemDropHint] = useState({ itemId: "", position: "before" });
+  const [itemSortSaving, setItemSortSaving] = useState(false);
 
   const [loading, setLoading] = useState(false);
   const [loginLoading, setLoginLoading] = useState(false);
   const [submitLoading, setSubmitLoading] = useState(false);
+  const [storeSubmitLoading, setStoreSubmitLoading] = useState(false);
   const [uploadLoading, setUploadLoading] = useState(false);
   const [orderActionLoadingId, setOrderActionLoadingId] = useState("");
 
@@ -156,6 +176,7 @@ const MerchantItemsAdmin = () => {
   const [itemForm, setItemForm] = useState(EMPTY_ITEM_FORM);
   const [editingCategoryId, setEditingCategoryId] = useState(null);
   const [categoryForm, setCategoryForm] = useState(EMPTY_CATEGORY_FORM);
+  const [storeForm, setStoreForm] = useState(EMPTY_STORE_FORM);
 
   const categoryNameMap = useMemo(
     () => new Map(categories.map((category) => [category.id, category.name])),
@@ -196,6 +217,12 @@ const MerchantItemsAdmin = () => {
 
     return rows;
   }, [activeCategoryFilter, itemStatusFilter, items, priceSort, searchKeyword]);
+
+  const canReorderItems =
+    searchKeyword.trim() === "" &&
+    activeCategoryFilter === "all" &&
+    itemStatusFilter === "all" &&
+    priceSort === "none";
 
   const showToast = useCallback((type, message) => {
     if (!message) return;
@@ -243,13 +270,15 @@ const MerchantItemsAdmin = () => {
     setErrorMessage("");
 
     try {
-      const [categoryResp, itemResp, allergenResp, orderResp] = await Promise.all([
+      const [storeResp, categoryResp, itemResp, allergenResp, orderResp] = await Promise.all([
+        fetchWithAuth(`/api/admin/stores/${selectedStoreId}/profile`),
         fetchWithAuth(`/api/admin/stores/${selectedStoreId}/categories`),
         fetchWithAuth(`/api/admin/stores/${selectedStoreId}/items`),
         fetchWithAuth(`/api/admin/stores/${selectedStoreId}/allergens`),
         fetchWithAuth(`/api/admin/stores/${selectedStoreId}/orders`),
       ]);
 
+      setStoreForm(normalizeStoreForm(storeResp));
       setCategories(categoryResp?.categories ?? []);
       setItems(itemResp?.items ?? []);
       setOrders(orderResp?.orders ?? []);
@@ -345,6 +374,9 @@ const MerchantItemsAdmin = () => {
     setCategories([]);
     setItems([]);
     setOrders([]);
+    setStoreForm(EMPTY_STORE_FORM);
+    clearCategoryDragState();
+    clearItemDragState();
     resetItemForm();
     resetCategoryForm();
     setSuccessMessage("已退出登录");
@@ -364,6 +396,9 @@ const MerchantItemsAdmin = () => {
     setActiveCategoryFilter("all");
     setItemStatusFilter("all");
     setPriceSort("none");
+    setStoreForm(EMPTY_STORE_FORM);
+    clearCategoryDragState();
+    clearItemDragState();
   };
 
   const handleAllergenToggle = (allergenCode) => {
@@ -376,37 +411,59 @@ const MerchantItemsAdmin = () => {
     });
   };
 
-  const handleImageUpload = async (file) => {
+  const uploadImageFile = async (file) => {
     if (!file) return;
     if (!selectedStoreId) {
-      setErrorMessage("请先选择店铺");
-      return;
+      throw new Error("请先选择店铺");
     }
 
+    const formData = new FormData();
+    formData.append("file", file);
+
+    const response = await fetch(`${API_BASE_URL}/api/admin/stores/${selectedStoreId}/uploads/image`, {
+      method: "POST",
+      headers: { Authorization: `Bearer ${token}` },
+      body: formData,
+    });
+
+    if (!response.ok) {
+      const payload = await response.json().catch(() => ({}));
+      throw new Error(payload?.message || "上传图片失败");
+    }
+
+    const payload = await response.json();
+    return payload.imageUrl ?? "";
+  };
+
+  const handleImageUpload = async (file) => {
+    if (!file) return;
     setUploadLoading(true);
     setErrorMessage("");
     setSuccessMessage("");
-
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-
-      const response = await fetch(`${API_BASE_URL}/api/admin/stores/${selectedStoreId}/uploads/image`, {
-        method: "POST",
-        headers: { Authorization: `Bearer ${token}` },
-        body: formData,
-      });
-
-      if (!response.ok) {
-        const payload = await response.json().catch(() => ({}));
-        throw new Error(payload?.message || "上传图片失败");
-      }
-
-      const payload = await response.json();
-      setItemForm((current) => ({ ...current, imageUrl: payload.imageUrl ?? "" }));
+      const imageUrl = await uploadImageFile(file);
+      setItemForm((current) => ({ ...current, imageUrl }));
       setSuccessMessage("图片上传成功");
     } catch (error) {
       setErrorMessage(error.message || "上传图片失败");
+    } finally {
+      setUploadLoading(false);
+    }
+  };
+
+  const handleStoreLogoUpload = async (file) => {
+    if (!file) return;
+    setUploadLoading(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+    try {
+      const imageUrl = await uploadImageFile(file);
+      setStoreForm((current) => ({ ...current, logoUrl: imageUrl }));
+      setSuccessMessage("商铺头像上传成功，请点击保存");
+      showToast("success", "商铺头像上传成功");
+    } catch (error) {
+      setErrorMessage(error.message || "上传商铺头像失败");
+      showToast("error", error.message || "上传商铺头像失败");
     } finally {
       setUploadLoading(false);
     }
@@ -588,6 +645,96 @@ const MerchantItemsAdmin = () => {
     await persistCategoryOrder(reordered, { fromDrag: true });
   };
 
+  const persistItemOrder = async (nextItems, options = {}) => {
+    const fromDrag = Boolean(options.fromDrag);
+    if (!selectedStoreId || !nextItems.length) {
+      return;
+    }
+
+    setItemSortSaving(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+    try {
+      for (let index = 0; index < nextItems.length; index += 1) {
+        const item = nextItems[index];
+        const nextSortOrder = (index + 1) * 10;
+        await fetchWithAuth(`/api/admin/stores/${selectedStoreId}/items/${item.id}`, {
+          method: "PUT",
+          body: JSON.stringify({ sortOrder: nextSortOrder }),
+        });
+      }
+      const message = fromDrag ? "菜品顺序已自动保存" : "菜品顺序已保存";
+      setSuccessMessage(message);
+      showToast("success", message);
+      await loadData();
+    } catch (error) {
+      const message = error.message || "保存菜品顺序失败";
+      setErrorMessage(message);
+      showToast("error", message);
+    } finally {
+      setItemSortSaving(false);
+    }
+  };
+
+  const clearItemDragState = () => {
+    setDraggingItemId("");
+    setItemDropHint({ itemId: "", position: "before" });
+  };
+
+  const handleItemDragStart = (itemId) => {
+    if (!canReorderItems) return;
+    setDraggingItemId(itemId);
+    setItemDropHint({ itemId: "", position: "before" });
+  };
+
+  const handleItemDragOver = (event, targetItemId) => {
+    if (!canReorderItems) return;
+    event.preventDefault();
+    if (!draggingItemId || draggingItemId === targetItemId) return;
+
+    const rect = event.currentTarget.getBoundingClientRect();
+    const position = event.clientY < rect.top + rect.height / 2 ? "before" : "after";
+    setItemDropHint((current) => {
+      if (current.itemId === targetItemId && current.position === position) return current;
+      return { itemId: targetItemId, position };
+    });
+  };
+
+  const handleItemDrop = async (targetItemId) => {
+    if (!canReorderItems) {
+      clearItemDragState();
+      return;
+    }
+
+    const position = itemDropHint.itemId === targetItemId ? itemDropHint.position : "before";
+    if (!draggingItemId || draggingItemId === targetItemId) {
+      clearItemDragState();
+      return;
+    }
+
+    const sourceIndex = items.findIndex((item) => item.id === draggingItemId);
+    const targetIndex = items.findIndex((item) => item.id === targetItemId);
+    if (sourceIndex < 0 || targetIndex < 0) {
+      clearItemDragState();
+      return;
+    }
+
+    const reordered = [...items];
+    const [moved] = reordered.splice(sourceIndex, 1);
+    let insertIndex = targetIndex + (position === "after" ? 1 : 0);
+    if (sourceIndex < insertIndex) insertIndex -= 1;
+    if (insertIndex < 0) insertIndex = 0;
+    if (insertIndex > reordered.length) insertIndex = reordered.length;
+    if (sourceIndex === insertIndex) {
+      clearItemDragState();
+      return;
+    }
+    reordered.splice(insertIndex, 0, moved);
+    setItems(reordered);
+    clearItemDragState();
+    await persistItemOrder(reordered, { fromDrag: true });
+  };
+
   const handleToggleCategoryActive = async (category) => {
     setErrorMessage("");
     setSuccessMessage("");
@@ -642,6 +789,42 @@ const MerchantItemsAdmin = () => {
       setErrorMessage(error.message || "保存分类失败");
     } finally {
       setSubmitLoading(false);
+    }
+  };
+
+  const handleSubmitStoreProfile = async (event) => {
+    event.preventDefault();
+    if (!selectedStoreId) {
+      setErrorMessage("请先选择店铺");
+      return;
+    }
+
+    setStoreSubmitLoading(true);
+    setErrorMessage("");
+    setSuccessMessage("");
+    try {
+      const payload = {
+        brandName: storeForm.brandName.trim(),
+        logoUrl: storeForm.logoUrl.trim() || null,
+        addressText: storeForm.addressText.trim() || null,
+        contactPhone: storeForm.contactPhone.trim() || null,
+        contactEmail: storeForm.contactEmail.trim() || null,
+      };
+      if (!payload.brandName) {
+        throw new Error("商铺名称不能为空");
+      }
+      await fetchWithAuth(`/api/admin/stores/${selectedStoreId}/profile`, {
+        method: "PUT",
+        body: JSON.stringify(payload),
+      });
+      setSuccessMessage("商铺信息已更新");
+      showToast("success", "商铺信息已更新");
+      await loadData();
+    } catch (error) {
+      setErrorMessage(error.message || "保存商铺信息失败");
+      showToast("error", error.message || "保存商铺信息失败");
+    } finally {
+      setStoreSubmitLoading(false);
     }
   };
 
@@ -736,7 +919,8 @@ const MerchantItemsAdmin = () => {
               <select value={selectedStoreId} onChange={(event) => handleStoreChange(event.target.value)}>
                 {memberships.map((membership) => (
                   <option key={membership.store_id} value={membership.store_id}>
-                    {membership.store_id.slice(0, 8)}... ({membership.role})
+                    {membership.store_brand_name ?? membership.store_slug ?? membership.store_id.slice(0, 8)} (
+                    {membership.role})
                   </option>
                 ))}
               </select>
@@ -748,6 +932,13 @@ const MerchantItemsAdmin = () => {
         </header>
 
         <div className="merchant-admin-tabs">
+          <button
+            type="button"
+            className={activeTab === "store" ? "secondary active-filter" : "secondary"}
+            onClick={() => setActiveTab("store")}
+          >
+            商铺管理
+          </button>
           <button
             type="button"
             className={activeTab === "categories" ? "secondary active-filter" : "secondary"}
@@ -773,6 +964,105 @@ const MerchantItemsAdmin = () => {
 
         {errorMessage ? <p className="merchant-admin-error">{errorMessage}</p> : null}
         {successMessage ? <p className="merchant-admin-success">{successMessage}</p> : null}
+
+        {activeTab === "store" ? (
+          <section className="merchant-admin-card">
+            <div className="merchant-admin-table-header">
+              <h2>商铺资料</h2>
+              <button type="button" className="secondary" onClick={loadData} disabled={loading}>
+                {loading ? "刷新中..." : "刷新"}
+              </button>
+            </div>
+            <form onSubmit={handleSubmitStoreProfile} className="merchant-admin-form">
+              <label>
+                商铺名称（顾客端显示）
+                <input
+                  type="text"
+                  value={storeForm.brandName}
+                  onChange={(event) =>
+                    setStoreForm((current) => ({ ...current, brandName: event.target.value }))
+                  }
+                  required
+                />
+              </label>
+
+              <div className="merchant-admin-row">
+                <label>
+                  商铺头像 URL
+                  <input
+                    type="url"
+                    value={storeForm.logoUrl}
+                    onChange={(event) =>
+                      setStoreForm((current) => ({ ...current, logoUrl: event.target.value }))
+                    }
+                    placeholder="https://..."
+                  />
+                </label>
+                <label>
+                  上传商铺头像
+                  <input
+                    className="merchant-admin-file-input"
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp,image/gif"
+                    disabled={uploadLoading}
+                    onChange={(event) => handleStoreLogoUpload(event.target.files?.[0])}
+                  />
+                  <small className="merchant-admin-help">
+                    {uploadLoading ? "上传中..." : "支持 jpeg/png/webp/gif，最大 5MB"}
+                  </small>
+                </label>
+              </div>
+
+              {storeForm.logoUrl ? (
+                <div className="merchant-admin-image-preview store-logo-preview">
+                  <img src={storeForm.logoUrl} alt="store-logo-preview" />
+                </div>
+              ) : null}
+
+              <label>
+                商铺地址（顾客端页脚显示）
+                <textarea
+                  rows={3}
+                  value={storeForm.addressText}
+                  onChange={(event) =>
+                    setStoreForm((current) => ({ ...current, addressText: event.target.value }))
+                  }
+                />
+              </label>
+
+              <div className="merchant-admin-row">
+                <label>
+                  联系电话（顾客端显示）
+                  <input
+                    type="text"
+                    value={storeForm.contactPhone}
+                    onChange={(event) =>
+                      setStoreForm((current) => ({ ...current, contactPhone: event.target.value }))
+                    }
+                    placeholder="+86 ..."
+                  />
+                </label>
+                <label>
+                  联系邮箱（顾客端显示）
+                  <input
+                    type="email"
+                    value={storeForm.contactEmail}
+                    onChange={(event) =>
+                      setStoreForm((current) => ({ ...current, contactEmail: event.target.value }))
+                    }
+                    placeholder="contact@yourstore.com"
+                  />
+                </label>
+              </div>
+
+              <div className="merchant-admin-form-actions">
+                <button type="submit" disabled={storeSubmitLoading}>
+                  {storeSubmitLoading ? "保存中..." : "保存商铺信息"}
+                </button>
+              </div>
+            </form>
+          </section>
+        ) : null}
 
         {activeTab === "categories" ? (
           <div className="merchant-admin-grid">
@@ -1062,58 +1352,93 @@ const MerchantItemsAdmin = () => {
               <div className="merchant-admin-table-header">
                 <h2>菜品列表</h2>
                 <div className="merchant-admin-table-header-actions">
-                  <input
-                    className="merchant-admin-search-input"
-                    type="search"
-                    placeholder="搜索菜品名称/描述/过敏源"
-                    value={searchKeyword}
-                    onChange={(event) => setSearchKeyword(event.target.value)}
-                  />
-                  <select
-                    className="merchant-admin-filter-select"
-                    value={activeCategoryFilter}
-                    onChange={(event) => setActiveCategoryFilter(event.target.value)}
-                  >
-                    <option value="all">全部分类</option>
-                    {categories.map((category) => (
-                      <option key={category.id} value={category.id}>
-                        {category.name}
-                      </option>
-                    ))}
-                  </select>
-                  <select
-                    className="merchant-admin-filter-select"
-                    value={itemStatusFilter}
-                    onChange={(event) => setItemStatusFilter(event.target.value)}
-                  >
-                    <option value="all">全部状态</option>
-                    <option value="active">启用</option>
-                    <option value="inactive">停用</option>
-                    <option value="available">可售</option>
-                    <option value="unavailable">下架</option>
-                  </select>
-                  <select
-                    className="merchant-admin-filter-select"
-                    value={priceSort}
-                    onChange={(event) => setPriceSort(event.target.value)}
-                  >
-                    <option value="none">价格排序</option>
-                    <option value="asc">价格从低到高</option>
-                    <option value="desc">价格从高到低</option>
-                  </select>
                   <button type="button" className="secondary" onClick={loadData} disabled={loading}>
                     {loading ? "刷新中..." : "刷新"}
                   </button>
+                  <button
+                    type="button"
+                    className="secondary"
+                    onClick={() => persistItemOrder(items)}
+                    disabled={itemSortSaving || !items.length}
+                  >
+                    {itemSortSaving ? "保存中..." : "保存当前菜品顺序"}
+                  </button>
                 </div>
               </div>
+
+              <div className="merchant-admin-search-panel">
+                <label className="merchant-admin-search-box">
+                  <span className="merchant-admin-search-box-label">搜索</span>
+                  <input
+                    className="merchant-admin-search-input"
+                    type="search"
+                    placeholder="输入菜品名称 / 描述 / 过敏源"
+                    value={searchKeyword}
+                    onChange={(event) => setSearchKeyword(event.target.value)}
+                  />
+                </label>
+
+                <div className="merchant-admin-filter-group">
+                  <label>
+                    分类
+                    <select
+                      className="merchant-admin-filter-select"
+                      value={activeCategoryFilter}
+                      onChange={(event) => setActiveCategoryFilter(event.target.value)}
+                    >
+                      <option value="all">全部分类</option>
+                      {categories.map((category) => (
+                        <option key={category.id} value={category.id}>
+                          {category.name}
+                        </option>
+                      ))}
+                    </select>
+                  </label>
+
+                  <label>
+                    状态
+                    <select
+                      className="merchant-admin-filter-select"
+                      value={itemStatusFilter}
+                      onChange={(event) => setItemStatusFilter(event.target.value)}
+                    >
+                      <option value="all">全部状态</option>
+                      <option value="active">启用</option>
+                      <option value="inactive">停用</option>
+                      <option value="available">可售</option>
+                      <option value="unavailable">下架</option>
+                    </select>
+                  </label>
+
+                  <label>
+                    价格
+                    <select
+                      className="merchant-admin-filter-select"
+                      value={priceSort}
+                      onChange={(event) => setPriceSort(event.target.value)}
+                    >
+                      <option value="none">默认</option>
+                      <option value="asc">价格从低到高</option>
+                      <option value="desc">价格从高到低</option>
+                    </select>
+                  </label>
+                </div>
+              </div>
+
+              <p className="merchant-admin-drag-tip">
+                {canReorderItems
+                  ? "拖拽菜品可自动保存顺序：放到条目上半区=插入前，下半区=插入后。"
+                  : "当前启用了搜索或筛选，已暂停拖拽排序。清空搜索并恢复“全部/默认”后可拖拽。"}
+              </p>
 
               {!filteredItems.length ? (
                 <p className="merchant-admin-empty">暂无菜品</p>
               ) : (
                 <div className="merchant-admin-table-wrap">
-                  <table className="merchant-admin-table">
+                  <table className={`merchant-admin-table ${canReorderItems ? "is-reorderable" : ""}`}>
                     <thead>
                       <tr>
+                        <th>排序</th>
                         <th>名称</th>
                         <th>分类</th>
                         <th>价格</th>
@@ -1123,7 +1448,22 @@ const MerchantItemsAdmin = () => {
                     </thead>
                     <tbody>
                       {filteredItems.map((item) => (
-                        <tr key={item.id}>
+                        <tr
+                          key={item.id}
+                          className={`${draggingItemId === item.id ? "dragging" : ""} ${
+                            itemDropHint.itemId === item.id ? `drop-${itemDropHint.position}` : ""
+                          }`}
+                          draggable={canReorderItems}
+                          onDragStart={() => handleItemDragStart(item.id)}
+                          onDragOver={(event) => handleItemDragOver(event, item.id)}
+                          onDrop={() => handleItemDrop(item.id)}
+                          onDragEnd={clearItemDragState}
+                        >
+                          <td className="merchant-admin-item-grip-cell">
+                            <span className="merchant-admin-item-grip" title="拖拽调整顺序">
+                              ≡
+                            </span>
+                          </td>
                           <td>
                             <div className="merchant-admin-item-name">{item.name}</div>
                             <div className="merchant-admin-item-desc">{item.description}</div>

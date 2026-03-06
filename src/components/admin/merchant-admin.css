@@ -132,6 +132,10 @@
   border-radius: 6px;
 }
 
+.merchant-admin-image-preview.store-logo-preview {
+  width: min(240px, 100%);
+}
+
 .merchant-admin-allergen-fieldset {
   border: 1px solid #e5e7eb;
   border-radius: 10px;
@@ -263,12 +267,52 @@
 }
 
 .merchant-admin-search-input {
-  width: 320px;
-  max-width: 46vw;
+  width: 100%;
   border: 1px solid #cbd5e1;
-  border-radius: 999px;
-  padding: 9px 14px;
-  background: #f8fafc;
+  border-radius: 12px;
+  padding: 10px 12px;
+  background: #fff;
+  box-sizing: border-box;
+}
+
+.merchant-admin-search-panel {
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  padding: 10px;
+  background: linear-gradient(180deg, #f8fafc 0%, #ffffff 100%);
+  display: grid;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.merchant-admin-search-box {
+  display: grid !important;
+  grid-template-columns: 54px 1fr;
+  gap: 10px;
+  align-items: center;
+  padding: 6px 8px;
+  border: 1px solid #dbe3ef;
+  border-radius: 10px;
+  background: #fff;
+}
+
+.merchant-admin-search-box-label {
+  font-size: 0.78rem;
+  color: #64748b;
+}
+
+.merchant-admin-filter-group {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.merchant-admin-filter-group label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.78rem;
+  color: #64748b;
 }
 
 .merchant-admin-filter-select {
@@ -449,12 +493,46 @@
   font-size: 0.88rem;
 }
 
+.merchant-admin-table.is-reorderable tbody tr {
+  transition: box-shadow 0.16s ease, transform 0.16s ease, background-color 0.16s ease;
+}
+
+.merchant-admin-table.is-reorderable tbody tr.dragging {
+  opacity: 0.65;
+  transform: scale(0.996);
+  box-shadow: 0 8px 18px rgba(15, 23, 42, 0.1);
+}
+
+.merchant-admin-table.is-reorderable tbody tr.drop-before td {
+  box-shadow: inset 0 2px 0 #2563eb;
+  background: #eff6ff;
+}
+
+.merchant-admin-table.is-reorderable tbody tr.drop-after td {
+  box-shadow: inset 0 -2px 0 #2563eb;
+  background: #eff6ff;
+}
+
 .merchant-admin-table th,
 .merchant-admin-table td {
   text-align: left;
   border-bottom: 1px solid #e5e7eb;
   padding: 9px 8px;
   vertical-align: top;
+}
+
+.merchant-admin-item-grip-cell {
+  width: 50px;
+}
+
+.merchant-admin-item-grip {
+  color: #6b7280;
+  user-select: none;
+  font-size: 1.02rem;
+  cursor: grab;
+  display: inline-block;
+  min-width: 18px;
+  text-align: center;
 }
 
 .merchant-admin-item-name {
@@ -583,8 +661,18 @@
 
   .merchant-admin-table-header-actions {
     width: 100%;
-    flex-direction: column;
+    flex-direction: row;
+    flex-wrap: wrap;
     align-items: stretch;
+  }
+
+  .merchant-admin-filter-group {
+    grid-template-columns: 1fr;
+  }
+
+  .merchant-admin-search-box {
+    grid-template-columns: 1fr;
+    gap: 6px;
   }
 
   .merchant-admin-allergen-grid {
