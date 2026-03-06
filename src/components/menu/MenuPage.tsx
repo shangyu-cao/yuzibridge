@@ -95,7 +95,20 @@ type UiCopy = {
   orderSubmitErrorText: string;
 };
 
-const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL ?? "http://localhost:4000").replace(/\/$/, "");
+const resolveApiBaseUrl = () => {
+  const envBase = import.meta.env.VITE_API_BASE_URL?.trim();
+  if (envBase) return envBase.replace(/\/$/, "");
+  if (typeof window !== "undefined") {
+    const hostname = window.location.hostname;
+    if (["localhost", "127.0.0.1", "0.0.0.0"].includes(hostname)) {
+      return "http://localhost:4000";
+    }
+    return window.location.origin.replace(/\/$/, "");
+  }
+  return "http://localhost:4000";
+};
+
+const API_BASE_URL = resolveApiBaseUrl();
 
 const LANGUAGE_PRESET_LABELS: Record<string, { label: string; nativeLabel: string }> = {
   "en-US": { label: "English", nativeLabel: "English" },
@@ -453,7 +466,15 @@ const getUiCopy = (languageCode: string): UiCopy => {
 };
 
 const fetchJson = async <T,>(path: string): Promise<T> => {
-  const response = await fetch(`${API_BASE_URL}${path}`);
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`);
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error(`无法连接后端服务（${API_BASE_URL}）`);
+    }
+    throw error;
+  }
   if (!response.ok) {
     const message = await response.text();
     throw new Error(message || `HTTP ${response.status}`);
@@ -471,13 +492,21 @@ const buildMenuPath = (storeSlug: string, languageCode: string, dynamicTranslate
 };
 
 const postJson = async <T,>(path: string, body: unknown): Promise<T> => {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify(body),
-  });
+  let response: Response;
+  try {
+    response = await fetch(`${API_BASE_URL}${path}`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(body),
+    });
+  } catch (error) {
+    if (error instanceof TypeError) {
+      throw new Error(`无法连接后端服务（${API_BASE_URL}）`);
+    }
+    throw error;
+  }
 
   if (!response.ok) {
     let message = `HTTP ${response.status}`;
