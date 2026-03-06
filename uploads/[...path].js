@@ -1,4 +1,5 @@
 import { Readable } from "node:stream";
+import app from "../server/app.js";
 
 const HOP_BY_HOP_HEADERS = new Set([
   "connection",
@@ -21,16 +22,23 @@ const resolveProxyTarget = () => {
   return target.replace(/\/$/, "");
 };
 
+const shouldUseLocalApp = (req, proxyTarget) => {
+  if (!proxyTarget) return true;
+  try {
+    const target = new URL(proxyTarget);
+    const incomingHost = String(req.headers["x-forwarded-host"] || req.headers.host || "").trim();
+    if (incomingHost && target.host === incomingHost) return true;
+    if (["localhost", "127.0.0.1", "0.0.0.0"].includes(target.hostname)) return true;
+    return false;
+  } catch {
+    return true;
+  }
+};
+
 const proxyHandler = async (req, res) => {
   const proxyTarget = resolveProxyTarget();
-  if (!proxyTarget) {
-    res.statusCode = 500;
-    res.setHeader("Content-Type", "application/json; charset=utf-8");
-    res.end(
-      JSON.stringify({
-        message: "Missing BACKEND_API_BASE_URL environment variable.",
-      }),
-    );
+  if (shouldUseLocalApp(req, proxyTarget)) {
+    app(req, res);
     return;
   }
 
