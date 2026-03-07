@@ -435,6 +435,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
   const [basketQuantities, setBasketQuantities] = useState<Record<string, number>>({});
   const [isOrderExpanded, setIsOrderExpanded] = useState<boolean>(false);
   const [detailItem, setDetailItem] = useState<PublicMenuItem | null>(null);
+  const [isDetailImageVisible, setIsDetailImageVisible] = useState<boolean>(false);
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [usingFallback, setUsingFallback] = useState<boolean>(false);
@@ -487,6 +488,10 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
     setIsOrderExpanded(false);
     setDetailItem(null);
   }, [storeSlug]);
+
+  useEffect(() => {
+    setIsDetailImageVisible(Boolean(detailItem?.imageUrl?.trim()));
+  }, [detailItem]);
 
   useEffect(() => {
     let ignore = false;
@@ -796,8 +801,13 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
               ×
             </button>
 
-            {detailItem.imageUrl ? (
-              <img className="menu-item-modal__image" src={detailItem.imageUrl} alt={detailItem.name} />
+            {detailItem.imageUrl && isDetailImageVisible ? (
+              <img
+                className="menu-item-modal__image"
+                src={detailItem.imageUrl}
+                alt={detailItem.name}
+                onError={() => setIsDetailImageVisible(false)}
+              />
             ) : null}
 
             <div className="menu-item-modal__content">

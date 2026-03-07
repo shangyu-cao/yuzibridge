@@ -18,7 +18,7 @@ app.use(
     credentials: true,
   }),
 );
-app.use(express.json({ limit: "1mb" }));
+app.use(express.json({ limit: "12mb" }));
 app.use("/uploads", express.static(uploadsDirectory));
 
 app.get(

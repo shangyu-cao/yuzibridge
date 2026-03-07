@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
 
 type MenuItemCardProps = {
   name: string;
@@ -25,6 +25,11 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   onAddToBasket,
 }) => {
   const normalizedImageUrl = imageUrl?.trim();
+  const [isImageVisible, setIsImageVisible] = useState(Boolean(normalizedImageUrl));
+
+  useEffect(() => {
+    setIsImageVisible(Boolean(normalizedImageUrl));
+  }, [normalizedImageUrl]);
 
   const displayPrice =
     typeof price === "number"
@@ -38,7 +43,14 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   return (
     <article className="menu-item-card" onClick={onClick}>
       <div className="menu-item-card__row">
-        {normalizedImageUrl ? <img className="menu-item-card__image" src={normalizedImageUrl} alt={name} /> : null}
+        {normalizedImageUrl && isImageVisible ? (
+          <img
+            className="menu-item-card__image"
+            src={normalizedImageUrl}
+            alt={name}
+            onError={() => setIsImageVisible(false)}
+          />
+        ) : null}
 
         <div className="menu-item-card__content">
           <h3 className="menu-item-card__name">{name}</h3>
