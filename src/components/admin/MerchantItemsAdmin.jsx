@@ -192,6 +192,20 @@ const toAbsoluteMenuUrl = (targetUrl) => {
   return `${MENU_PUBLIC_BASE_URL}${normalized.startsWith("/") ? normalized : `/${normalized}`}`;
 };
 
+const readFileAsDataUrl = (file) =>
+  new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => {
+      if (typeof reader.result === "string" && reader.result.trim()) {
+        resolve(reader.result);
+      } else {
+        reject(new Error("图片读取失败"));
+      }
+    };
+    reader.onerror = () => reject(new Error("图片读取失败"));
+    reader.readAsDataURL(file);
+  });
+
 const MerchantItemsAdmin = () => {
   const [token, setToken] = useState(() => localStorage.getItem(TOKEN_KEY) || "");
   const [user, setUser] = useState(() => parseStoredJson(localStorage.getItem(USER_KEY), null));
@@ -577,41 +591,17 @@ const MerchantItemsAdmin = () => {
     });
   };
 
-  const uploadImageFile = async (file) => {
-    if (!file) return;
-    if (!selectedStoreId) {
-      throw new Error("请先选择店铺");
-    }
-
-    const formData = new FormData();
-    formData.append("file", file);
-
-    const response = await fetch(`${API_BASE_URL}/api/admin/stores/${selectedStoreId}/uploads/image`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${token}` },
-      body: formData,
-    });
-
-    if (!response.ok) {
-      const payload = await response.json().catch(() => ({}));
-      throw new Error(payload?.message || "上传图片失败");
-    }
-
-    const payload = await response.json();
-    return payload.imageUrl ?? "";
-  };
-
   const handleImageUpload = async (file) => {
     if (!file) return;
     setUploadLoading(true);
     setErrorMessage("");
     setSuccessMessage("");
     try {
-      const imageUrl = await uploadImageFile(file);
+      const imageUrl = await readFileAsDataUrl(file);
       setItemForm((current) => ({ ...current, imageUrl }));
-      setSuccessMessage("图片上传成功");
+      setSuccessMessage("图片已加载，请点击保存");
     } catch (error) {
-      setErrorMessage(error.message || "上传图片失败");
+      setErrorMessage(error.message || "读取图片失败");
     } finally {
       setUploadLoading(false);
     }
@@ -623,13 +613,13 @@ const MerchantItemsAdmin = () => {
     setErrorMessage("");
     setSuccessMessage("");
     try {
-      const imageUrl = await uploadImageFile(file);
+      const imageUrl = await readFileAsDataUrl(file);
       setStoreForm((current) => ({ ...current, logoUrl: imageUrl }));
-      setSuccessMessage("商铺头像上传成功，请点击保存");
-      showToast("success", "商铺头像上传成功");
+      setSuccessMessage("商铺头像已加载，请点击保存");
+      showToast("success", "商铺头像已加载，请点击保存");
     } catch (error) {
-      setErrorMessage(error.message || "上传商铺头像失败");
-      showToast("error", error.message || "上传商铺头像失败");
+      setErrorMessage(error.message || "读取商铺头像失败");
+      showToast("error", error.message || "读取商铺头像失败");
     } finally {
       setUploadLoading(false);
     }
