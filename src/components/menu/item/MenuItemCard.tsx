@@ -24,6 +24,8 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   addButtonText = "Add",
   onAddToBasket,
 }) => {
+  const normalizedImageUrl = imageUrl?.trim();
+
   const displayPrice =
     typeof price === "number"
       ? new Intl.NumberFormat(locale, {
@@ -36,11 +38,7 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   return (
     <article className="menu-item-card" onClick={onClick}>
       <div className="menu-item-card__row">
-        {imageUrl ? (
-          <img className="menu-item-card__image" src={imageUrl} alt={name} />
-        ) : (
-          <div className="menu-item-card__image menu-item-card__image--placeholder" aria-hidden="true" />
-        )}
+        {normalizedImageUrl ? <img className="menu-item-card__image" src={normalizedImageUrl} alt={name} /> : null}
 
         <div className="menu-item-card__content">
           <h3 className="menu-item-card__name">{name}</h3>

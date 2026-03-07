@@ -1,31 +1,19 @@
 import express from "express";
-import path from "node:path";
-import { randomUUID } from "node:crypto";
 import multer from "multer";
 import { z } from "zod";
 import { query, withTransaction } from "../db/pool.js";
 import { authenticateAdmin, requireStoreRole } from "../middleware/auth.js";
 import { asyncHandler } from "../utils/async-handler.js";
 import { HttpError } from "../utils/http-error.js";
-import { resolveUploadsDirectory } from "../utils/uploads-directory.js";
 import { ensureCategoryBelongsStore, getActiveStoreForAdmin } from "../services/store-service.js";
 
 const router = express.Router();
 router.use(authenticateAdmin);
 
-const uploadsDirectory = resolveUploadsDirectory();
-
 const allowedImageMimeTypes = new Set(["image/jpeg", "image/png", "image/webp", "image/gif"]);
 
 const imageUpload = multer({
-  storage: multer.diskStorage({
-    destination: (_req, _file, callback) => callback(null, uploadsDirectory),
-    filename: (_req, file, callback) => {
-      const extension = path.extname(file.originalname || "").toLowerCase();
-      const safeExtension = extension && extension.length <= 10 ? extension : ".jpg";
-      callback(null, `${Date.now()}-${randomUUID()}${safeExtension}`);
-    },
-  }),
+  storage: multer.memoryStorage(),
   limits: {
     fileSize: 5 * 1024 * 1024,
   },
@@ -534,14 +522,13 @@ router.post(
       throw new HttpError(400, "Image file is required.");
     }
 
-    const imagePath = `/uploads/${req.file.filename}`;
-    const host = req.get("host");
-    const imageUrl = `${req.protocol}://${host}${imagePath}`;
+    const base64 = req.file.buffer.toString("base64");
+    const imageUrl = `data:${req.file.mimetype};base64,${base64}`;
 
     res.status(201).json({
       imageUrl,
-      imagePath,
-      fileName: req.file.filename,
+      imagePath: null,
+      fileName: req.file.originalname || null,
       mimeType: req.file.mimetype,
       size: req.file.size,
     });
