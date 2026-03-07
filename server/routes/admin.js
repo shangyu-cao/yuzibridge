@@ -131,6 +131,16 @@ const updateOrderStatusSchema = z.object({
   status: z.enum(["accepted", "preparing", "ready"]),
 });
 
+const generateTablesSchema = z.object({
+  area: z
+    .string()
+    .trim()
+    .min(1)
+    .max(20)
+    .regex(/^[a-zA-Z]+$/, "Area must contain letters only"),
+  count: z.number().int().min(1).max(200),
+});
+
 const normalizeAllergenCodes = (codes = []) => {
   return [...new Set(codes.map((code) => code.trim().toLowerCase()).filter(Boolean))];
 };
@@ -275,6 +285,51 @@ const toAdminStoreProfile = (store) => ({
   contactEmail: store.contact_email,
 });
 
+const parseTableCode = (value) => {
+  const text = String(value ?? "").trim();
+  const match = text.match(/^([a-zA-Z]+)(\d+)$/);
+  if (!match) {
+    return {
+      area: text.toLowerCase(),
+      number: Number.POSITIVE_INFINITY,
+      raw: text,
+    };
+  }
+  return {
+    area: match[1].toLowerCase(),
+    number: Number.parseInt(match[2], 10),
+    raw: text,
+  };
+};
+
+const compareTableCodes = (left, right) => {
+  const a = parseTableCode(left);
+  const b = parseTableCode(right);
+  if (a.area !== b.area) return a.area.localeCompare(b.area);
+  if (a.number !== b.number) return a.number - b.number;
+  return a.raw.localeCompare(b.raw);
+};
+
+const loadStoreTables = async (dbClient, storeId) => {
+  const result = await dbClient.query(
+    `
+      select id, table_code, target_url
+      from store_qr_codes
+      where store_id = $1 and table_code is not null
+      order by created_at asc
+    `,
+    [storeId],
+  );
+
+  return result.rows
+    .map((row) => ({
+      id: row.id,
+      tableCode: row.table_code,
+      targetUrl: row.target_url,
+    }))
+    .sort((a, b) => compareTableCodes(a.tableCode, b.tableCode));
+};
+
 router.get(
   "/stores/:storeId/profile",
   requireStoreRole(readOnlyRoles),
@@ -282,6 +337,72 @@ router.get(
     const { storeId } = storeParamsSchema.parse(req.params);
     const store = await getActiveStoreForAdmin({ query }, storeId);
     res.json(toAdminStoreProfile(store));
+  }),
+);
+
+router.get(
+  "/stores/:storeId/tables",
+  requireStoreRole(readOnlyRoles),
+  asyncHandler(async (req, res) => {
+    const { storeId } = storeParamsSchema.parse(req.params);
+    const store = await getActiveStoreForAdmin({ query }, storeId);
+    const tables = await loadStoreTables({ query }, store.id);
+
+    res.json({
+      storeId: store.id,
+      storeSlug: store.slug,
+      tables,
+    });
+  }),
+);
+
+router.post(
+  "/stores/:storeId/tables/generate",
+  requireStoreRole(editRoles),
+  asyncHandler(async (req, res) => {
+    const { storeId } = storeParamsSchema.parse(req.params);
+    const payload = generateTablesSchema.parse(req.body);
+
+    const result = await withTransaction(async (client) => {
+      const store = await getActiveStoreForAdmin(client, storeId);
+      const area = payload.area.trim().toLowerCase();
+      const regexPattern = `^${area}[0-9]+$`;
+
+      await client.query(
+        `
+          delete from store_qr_codes
+          where store_id = $1
+            and table_code is not null
+            and table_code ~* $2
+        `,
+        [store.id, regexPattern],
+      );
+
+      for (let index = 1; index <= payload.count; index += 1) {
+        const tableCode = `${area}${index}`;
+        const targetUrl = `/menu/${encodeURIComponent(store.slug)}?table=${encodeURIComponent(tableCode)}`;
+        await client.query(
+          `
+            insert into store_qr_codes (store_id, table_code, target_url, qr_image_url)
+            values ($1, $2, $3, null)
+            on conflict (store_id, table_code)
+            do update set
+              target_url = excluded.target_url,
+              qr_image_url = null
+          `,
+          [store.id, tableCode, targetUrl],
+        );
+      }
+
+      const tables = await loadStoreTables(client, store.id);
+      return {
+        storeId: store.id,
+        storeSlug: store.slug,
+        tables,
+      };
+    });
+
+    res.json(result);
   }),
 );
 

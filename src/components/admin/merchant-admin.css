@@ -64,6 +64,25 @@
   gap: 14px;
 }
 
+.merchant-admin-split {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 14px;
+}
+
+.merchant-admin-split.with-editor {
+  grid-template-columns: minmax(0, 1fr) 420px;
+}
+
+.merchant-admin-split-main {
+  min-width: 0;
+}
+
+.merchant-admin-split-side {
+  min-width: 0;
+}
+
 .merchant-admin-tabs {
   margin-top: 12px;
   display: flex;
@@ -485,6 +504,32 @@
   overflow: auto;
 }
 
+.merchant-admin-table-generator {
+  display: grid;
+  grid-template-columns: minmax(0, 180px) minmax(0, 180px) auto;
+  gap: 10px;
+  align-items: end;
+  margin-bottom: 12px;
+}
+
+.merchant-admin-table-generator label {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.84rem;
+  color: #374151;
+}
+
+.merchant-admin-link {
+  color: #2563eb;
+  text-decoration: none;
+  word-break: break-all;
+}
+
+.merchant-admin-link:hover {
+  text-decoration: underline;
+}
+
 .merchant-admin-orders {
   display: grid;
   gap: 10px;
@@ -748,6 +793,15 @@
 @media (max-width: 1080px) {
   .merchant-admin-grid {
     grid-template-columns: 1fr;
+  }
+
+  .merchant-admin-split.with-editor {
+    grid-template-columns: 1fr;
+  }
+
+  .merchant-admin-table-generator {
+    grid-template-columns: 1fr;
+    align-items: stretch;
   }
 
   .merchant-admin-search-input {
