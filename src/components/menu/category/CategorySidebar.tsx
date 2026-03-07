@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useEffect, useRef } from "react";
 
 export type MenuCategory = {
   id: string;
@@ -19,6 +19,25 @@ const CategorySidebar: React.FC<CategorySidebarProps> = ({
   onCategorySelect,
   title = "Categories",
 }) => {
+  const categoryButtonRefs = useRef<Record<string, HTMLButtonElement | null>>({});
+
+  useEffect(() => {
+    if (!activeCategoryId) return;
+    const activeButton = categoryButtonRefs.current[activeCategoryId];
+    if (!activeButton) return;
+
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+    activeButton.scrollIntoView({
+      block: "nearest",
+      inline: "nearest",
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+    });
+  }, [activeCategoryId, categories.length]);
+
   return (
     <aside className="category-sidebar" aria-label="Menu categories">
       <h2 className="category-sidebar__title">{title}</h2>
@@ -34,6 +53,9 @@ const CategorySidebar: React.FC<CategorySidebarProps> = ({
               <li key={category.id} className="category-sidebar__item">
                 <button
                   type="button"
+                  ref={(node) => {
+                    categoryButtonRefs.current[category.id] = node;
+                  }}
                   className={`category-sidebar__button ${
                     isActive ? "category-sidebar__button--active" : ""
                   }`}
