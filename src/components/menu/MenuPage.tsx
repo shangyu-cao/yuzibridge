@@ -187,7 +187,7 @@ const UI_COPY: Record<string, UiCopy> = {
     orderItemsLabel: "份",
     orderEmptyText: "购物车为空",
     orderHideText: "隐藏",
-    orderConfirmText: "确定",
+    orderConfirmText: "去结算",
   },
   "en-US": {
     languageLabel: "Language",
@@ -203,7 +203,7 @@ const UI_COPY: Record<string, UiCopy> = {
     orderItemsLabel: "items",
     orderEmptyText: "Your basket is empty",
     orderHideText: "Hide",
-    orderConfirmText: "Confirm",
+    orderConfirmText: "Checkout",
   },
   "ja-JP": {
     languageLabel: "言語",
@@ -219,7 +219,7 @@ const UI_COPY: Record<string, UiCopy> = {
     orderItemsLabel: "点",
     orderEmptyText: "カートは空です",
     orderHideText: "閉じる",
-    orderConfirmText: "確定",
+    orderConfirmText: "会計へ",
   },
   "ko-KR": {
     languageLabel: "언어",
@@ -235,7 +235,7 @@ const UI_COPY: Record<string, UiCopy> = {
     orderItemsLabel: "개",
     orderEmptyText: "장바구니가 비어 있습니다",
     orderHideText: "숨기기",
-    orderConfirmText: "확인",
+    orderConfirmText: "결제하기",
   },
   "es-ES": {
     languageLabel: "Idioma",
@@ -251,7 +251,7 @@ const UI_COPY: Record<string, UiCopy> = {
     orderItemsLabel: "artículos",
     orderEmptyText: "Tu cesta está vacía",
     orderHideText: "Ocultar",
-    orderConfirmText: "Confirmar",
+    orderConfirmText: "Pagar",
   },
   "fr-FR": {
     languageLabel: "Langue",
@@ -268,7 +268,7 @@ const UI_COPY: Record<string, UiCopy> = {
     orderItemsLabel: "articles",
     orderEmptyText: "Votre panier est vide",
     orderHideText: "Masquer",
-    orderConfirmText: "Confirmer",
+    orderConfirmText: "Paiement",
   },
   "de-DE": {
     languageLabel: "Sprache",
@@ -284,7 +284,7 @@ const UI_COPY: Record<string, UiCopy> = {
     orderItemsLabel: "Artikel",
     orderEmptyText: "Ihr Warenkorb ist leer",
     orderHideText: "Ausblenden",
-    orderConfirmText: "Bestätigen",
+    orderConfirmText: "Zur Kasse",
   },
   "ar-SA": {
     languageLabel: "اللغة",
@@ -300,7 +300,7 @@ const UI_COPY: Record<string, UiCopy> = {
     orderItemsLabel: "عناصر",
     orderEmptyText: "السلة فارغة",
     orderHideText: "إخفاء",
-    orderConfirmText: "تأكيد",
+    orderConfirmText: "إتمام الدفع",
   },
 };
 
@@ -842,7 +842,6 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
           {isOrderExpanded ? (
             <div className="order-drawer__panel">
               <div className="order-drawer__panel-header">
-                <strong>{uiCopy.orderLabel}</strong>
                 <button
                   type="button"
                   className="order-drawer__hide-button"
@@ -856,7 +855,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
                 {basketLineItems.length ? (
                   basketLineItems.map((item) => (
                     <li key={item.id} className="order-drawer__item">
-                      <div className="order-drawer__item-main">
+                      <div className="order-drawer__item-left">
                         <p className="order-drawer__item-name">{item.name}</p>
                         <p className="order-drawer__item-total">
                           {formatMoneyMinor(item.lineTotalMinor, item.currency, selectedLanguage)}

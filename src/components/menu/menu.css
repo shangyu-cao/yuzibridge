@@ -487,8 +487,8 @@
 .order-drawer__panel-header {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: 8px;
+  justify-content: flex-end;
+  margin-bottom: 6px;
 }
 
 .order-drawer__hide-button {
@@ -523,58 +523,63 @@
   overflow: auto;
   display: flex;
   flex-direction: column;
-  gap: 8px;
+  gap: 6px;
 }
 
 .order-drawer__item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
   border: 1px solid #e5e7eb;
   border-radius: 10px;
-  padding: 10px;
+  padding: 8px;
 }
 
-.order-drawer__item-main {
-  display: flex;
-  justify-content: space-between;
-  align-items: flex-start;
-  gap: 8px;
+.order-drawer__item-left {
+  min-width: 0;
+  flex: 1;
 }
 
 .order-drawer__item-name {
   margin: 0;
-  font-size: 0.86rem;
+  font-size: 0.8rem;
+  line-height: 1.2;
 }
 
 .order-drawer__item-total {
-  margin: 0;
+  margin: 4px 0 0;
   font-size: 0.86rem;
   font-weight: 600;
   color: #065f46;
-  white-space: nowrap;
+  white-space: normal;
 }
 
 .order-drawer__qty-controls {
-  margin-top: 8px;
+  margin-top: 0;
+  margin-left: auto;
   display: flex;
   align-items: center;
-  justify-content: flex-start;
-  gap: 10px;
+  justify-content: flex-end;
+  gap: 6px;
+  flex-shrink: 0;
 }
 
 .order-drawer__qty-button {
-  width: 44px;
-  height: 44px;
+  width: 34px;
+  height: 34px;
   border: 1px solid #d1d5db;
   background: #fff;
   color: #111827;
-  border-radius: 10px;
-  font-size: 1.1rem;
+  border-radius: 8px;
+  font-size: 1rem;
   cursor: pointer;
 }
 
 .order-drawer__qty-value {
-  min-width: 22px;
+  min-width: 18px;
   text-align: center;
-  font-size: 0.86rem;
+  font-size: 0.78rem;
 }
 
 .order-drawer__empty {
