@@ -57,18 +57,8 @@ create trigger trg_stores_updated_at
 before update on stores
 for each row execute function set_updated_at();
 
-create table if not exists store_social_links (
-  id uuid primary key default gen_random_uuid(),
-  store_id uuid not null references stores(id) on delete cascade,
-  platform text not null, -- instagram, xiaohongshu, facebook...
-  url text not null,
-  sort_order integer not null default 0,
-  created_at timestamptz not null default now(),
-  unique (store_id, platform, url)
-);
-
-create index if not exists idx_store_social_links_store_sort
-  on store_social_links (store_id, sort_order);
+-- Social media storage removed per product decision.
+drop table if exists store_social_links;
 
 create table if not exists store_languages (
   store_id uuid not null references stores(id) on delete cascade,

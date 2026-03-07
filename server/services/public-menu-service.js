@@ -130,9 +130,6 @@ const translatePublicMenuPayload = async (menuPayload, targetLanguage) => {
 
   registerTextRef(translated.store, "name");
   registerTextRef(translated.store, "address");
-  for (const link of translated.store.socialLinks ?? []) {
-    registerTextRef(link, "platform");
-  }
 
   for (const category of translated.categories ?? []) {
     registerTextRef(category, "name");
@@ -235,8 +232,7 @@ export const getPublicMenuBySlug = async ({ storeSlug, requestedLanguage, dynami
         default_language_code,
         default_currency_code,
         address_text,
-        contact_phone,
-        contact_email
+        contact_phone
       from stores
       where slug = $1 and is_active = true
       limit 1
@@ -251,16 +247,6 @@ export const getPublicMenuBySlug = async ({ storeSlug, requestedLanguage, dynami
   const store = storeResult.rows[0];
   const targetLanguage = requestedLanguage || store.default_language_code;
   const language = dynamicTranslate ? store.default_language_code : targetLanguage;
-
-  const socialResult = await query(
-    `
-      select platform, url
-      from store_social_links
-      where store_id = $1
-      order by sort_order asc, created_at asc
-    `,
-    [store.id],
-  );
 
   const categoriesResult = await query(
     `
@@ -366,8 +352,6 @@ export const getPublicMenuBySlug = async ({ storeSlug, requestedLanguage, dynami
       logoUrl: store.logo_url,
       address: store.address_text,
       phone: store.contact_phone,
-      email: store.contact_email,
-      socialLinks: socialResult.rows,
     },
     lang: language,
     fallbackLanguage: store.default_language_code,

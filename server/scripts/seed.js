@@ -34,11 +34,6 @@ const STORE_LANGUAGE_ROWS = [
   { code: "ar-SA", isDefault: false, isEnabled: true },
 ];
 
-const SOCIAL_LINKS = [
-  { platform: "instagram", url: "https://instagram.com/dunwuzhai" },
-  { platform: "xiaohongshu", url: "https://www.xiaohongshu.com/" },
-];
-
 const ALLERGENS = [
   {
     code: "milk",
@@ -263,24 +258,12 @@ const upsertStoreLanguages = async (client, storeId) => {
   }
 };
 
-const upsertStoreSocialLinks = async (client, storeId) => {
+const removeSocialLinkStorage = async (client) => {
   await client.query(
     `
-      delete from store_social_links
-      where store_id = $1
+      drop table if exists store_social_links
     `,
-    [storeId],
   );
-
-  for (const [index, link] of SOCIAL_LINKS.entries()) {
-    await client.query(
-      `
-        insert into store_social_links (store_id, platform, url, sort_order)
-        values ($1, $2, $3, $4)
-      `,
-      [storeId, link.platform, link.url, index + 1],
-    );
-  }
 };
 
 const upsertAdminUser = async (client) => {
@@ -581,10 +564,10 @@ const run = async () => {
     await client.query("begin");
 
     await upsertLanguages(client);
+    await removeSocialLinkStorage(client);
 
     const store = await upsertStore(client);
     await upsertStoreLanguages(client, store.id);
-    await upsertStoreSocialLinks(client, store.id);
 
     const adminUser = await upsertAdminUser(client);
     await upsertStoreMembership(client, store.id, adminUser.id);

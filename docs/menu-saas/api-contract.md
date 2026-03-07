@@ -39,9 +39,7 @@ Returns full menu payload for one store in target language with fallback already
     "name": "Dunwuzhai",
     "logoUrl": "https://...",
     "address": "Shanghai...",
-    "socialLinks": [
-      { "platform": "instagram", "url": "https://instagram.com/..." }
-    ]
+    "phone": "+86 21 5555 8888"
   },
   "lang": "en-US",
   "categories": [
@@ -117,7 +115,6 @@ Request:
 
 - `GET /api/admin/stores/:storeId/profile`
 - `PUT /api/admin/stores/:storeId/profile`
-- `PUT /api/admin/stores/:storeId/social-links`
 
 ### Translation management
 

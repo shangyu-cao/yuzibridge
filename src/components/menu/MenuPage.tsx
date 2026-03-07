@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import CategorySidebar from "./category/CategorySidebar";
 import MenuItemCard from "./item/MenuItemCard";
-import MenuFooter, { type SocialLink } from "./layout/MenuFooter";
+import MenuFooter from "./layout/MenuFooter";
 import MenuHeader, { type LanguageOption } from "./layout/MenuHeader";
 import "./menu.css";
 
@@ -42,8 +42,6 @@ type PublicMenuResponse = {
     logoUrl?: string | null;
     address?: string | null;
     phone?: string | null;
-    email?: string | null;
-    socialLinks: Array<{ platform: string; url: string }>;
   };
   lang: string;
   fallbackLanguage: string;
@@ -75,9 +73,6 @@ type MenuPageProps = {
 type UiCopy = {
   languageLabel: string;
   phoneLabel: string;
-  emailLabel: string;
-  socialLinksAriaLabel: string;
-  socialPlaceholder: string;
   categoryTitle: string;
   noItemsText: string;
   loadingText: string;
@@ -202,9 +197,6 @@ const UI_COPY: Record<string, UiCopy> = {
   "zh-CN": {
     languageLabel: "语言",
     phoneLabel: "电话",
-    emailLabel: "邮箱",
-    socialLinksAriaLabel: "社交媒体链接",
-    socialPlaceholder: "请在后台添加社交媒体链接。",
     categoryTitle: "分类",
     noItemsText: "该分类暂无菜品。",
     loadingText: "正在加载菜单...",
@@ -224,9 +216,6 @@ const UI_COPY: Record<string, UiCopy> = {
   "en-US": {
     languageLabel: "Language",
     phoneLabel: "Phone",
-    emailLabel: "Email",
-    socialLinksAriaLabel: "Social media links",
-    socialPlaceholder: "Add social links in admin settings.",
     categoryTitle: "Categories",
     noItemsText: "No dishes in this category yet.",
     loadingText: "Loading menu...",
@@ -246,9 +235,6 @@ const UI_COPY: Record<string, UiCopy> = {
   "ja-JP": {
     languageLabel: "言語",
     phoneLabel: "電話",
-    emailLabel: "メール",
-    socialLinksAriaLabel: "ソーシャルリンク",
-    socialPlaceholder: "管理画面でソーシャルリンクを追加してください。",
     categoryTitle: "カテゴリ",
     noItemsText: "このカテゴリには料理がありません。",
     loadingText: "メニューを読み込み中...",
@@ -268,9 +254,6 @@ const UI_COPY: Record<string, UiCopy> = {
   "ko-KR": {
     languageLabel: "언어",
     phoneLabel: "전화",
-    emailLabel: "이메일",
-    socialLinksAriaLabel: "소셜 미디어 링크",
-    socialPlaceholder: "관리자 페이지에서 소셜 링크를 추가하세요.",
     categoryTitle: "카테고리",
     noItemsText: "이 카테고리에 메뉴가 없습니다.",
     loadingText: "메뉴를 불러오는 중...",
@@ -290,9 +273,6 @@ const UI_COPY: Record<string, UiCopy> = {
   "es-ES": {
     languageLabel: "Idioma",
     phoneLabel: "Teléfono",
-    emailLabel: "Correo",
-    socialLinksAriaLabel: "Enlaces de redes sociales",
-    socialPlaceholder: "Agrega enlaces sociales en el panel de administración.",
     categoryTitle: "Categorías",
     noItemsText: "No hay platos en esta categoría.",
     loadingText: "Cargando menú...",
@@ -312,9 +292,6 @@ const UI_COPY: Record<string, UiCopy> = {
   "fr-FR": {
     languageLabel: "Langue",
     phoneLabel: "Téléphone",
-    emailLabel: "E-mail",
-    socialLinksAriaLabel: "Liens réseaux sociaux",
-    socialPlaceholder: "Ajoutez les liens sociaux dans l'administration.",
     categoryTitle: "Catégories",
     noItemsText: "Aucun plat dans cette catégorie.",
     loadingText: "Chargement du menu...",
@@ -335,9 +312,6 @@ const UI_COPY: Record<string, UiCopy> = {
   "de-DE": {
     languageLabel: "Sprache",
     phoneLabel: "Telefon",
-    emailLabel: "E-Mail",
-    socialLinksAriaLabel: "Social-Media-Links",
-    socialPlaceholder: "Fügen Sie Social-Links im Adminbereich hinzu.",
     categoryTitle: "Kategorien",
     noItemsText: "Keine Gerichte in dieser Kategorie.",
     loadingText: "Menü wird geladen...",
@@ -357,9 +331,6 @@ const UI_COPY: Record<string, UiCopy> = {
   "ar-SA": {
     languageLabel: "اللغة",
     phoneLabel: "الهاتف",
-    emailLabel: "البريد الإلكتروني",
-    socialLinksAriaLabel: "روابط التواصل الاجتماعي",
-    socialPlaceholder: "أضف روابط التواصل الاجتماعي من لوحة الإدارة.",
     categoryTitle: "الفئات",
     noItemsText: "لا توجد أطباق في هذه الفئة.",
     loadingText: "جارٍ تحميل القائمة...",
@@ -386,11 +357,6 @@ const DEMO_MENU: PublicMenuResponse = {
     logoUrl: null,
     address: "上海市静安区示例路 88 号",
     phone: "+86 21 5555 8888",
-    email: "hello@dunwuzhai.com",
-    socialLinks: [
-      { platform: "instagram", url: "https://instagram.com" },
-      { platform: "xiaohongshu", url: "https://www.xiaohongshu.com/" },
-    ],
   },
   lang: "zh-CN",
   fallbackLanguage: "zh-CN",
@@ -441,13 +407,6 @@ const DEMO_MENU: PublicMenuResponse = {
     },
   ],
 };
-
-const titleCase = (value: string) =>
-  value
-    .split(/[-_ ]+/)
-    .filter(Boolean)
-    .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-    .join(" ");
 
 const getUiCopy = (languageCode: string): UiCopy => {
   const normalized = normalizeLanguageCode(languageCode);
@@ -536,13 +495,6 @@ const toLanguageOptions = (payload: PublicLanguageResponse): LanguageOption[] =>
     code: language.code,
     label: LANGUAGE_PRESET_LABELS[language.code]?.label ?? language.englishName,
     nativeLabel: LANGUAGE_PRESET_LABELS[language.code]?.nativeLabel ?? language.name,
-  }));
-};
-
-const toSocialLinks = (links: Array<{ platform: string; url: string }>): SocialLink[] => {
-  return links.map((link) => ({
-    label: titleCase(link.platform),
-    url: link.url,
   }));
 };
 
@@ -856,7 +808,6 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
   };
 
   const storeName = menuPayload?.store.name ?? storeSlug;
-  const socialLinks = toSocialLinks(menuPayload?.store.socialLinks ?? []);
 
   return (
     <div className={`menu-page ${basketItemsCount > 0 ? "menu-page--with-order" : ""}`}>
@@ -928,12 +879,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
         <MenuFooter
           address={menuPayload?.store.address ?? undefined}
           phone={menuPayload?.store.phone ?? undefined}
-          email={menuPayload?.store.email ?? undefined}
-          socialLinks={socialLinks}
           phoneLabel={uiCopy.phoneLabel}
-          emailLabel={uiCopy.emailLabel}
-          socialLinksAriaLabel={uiCopy.socialLinksAriaLabel}
-          socialPlaceholder={uiCopy.socialPlaceholder}
         />
       </div>
 
