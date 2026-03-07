@@ -29,7 +29,7 @@
 .menu-header {
   display: flex;
   align-items: center;
-  justify-content: flex-end;
+  justify-content: space-between;
   gap: 8px;
   padding: 12px 14px;
   border-bottom: 1px solid #e5e7eb;
@@ -39,11 +39,12 @@
   display: flex;
   align-items: center;
   gap: 8px;
+  flex: 1;
   min-width: 0;
 }
 
 .menu-header__logo {
-  display: none;
+  display: block;
   width: 36px;
   height: 36px;
   border-radius: 12px;
@@ -66,7 +67,7 @@
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-width: 40vw;
+  max-width: 52vw;
 }
 
 .menu-header__language {
@@ -100,6 +101,7 @@
   display: grid;
   grid-template-columns: 110px minmax(0, 1fr);
   min-height: 520px;
+  align-items: start;
 }
 
 /* ===== CategorySidebar ===== */
@@ -107,6 +109,11 @@
   border-right: 1px solid #e5e7eb;
   padding: 10px 8px;
   background: #f8f8f8;
+  height: calc(100vh - 230px);
+  min-height: 360px;
+  max-height: 760px;
+  display: flex;
+  flex-direction: column;
 }
 
 .category-sidebar__title {
@@ -122,6 +129,8 @@
   display: flex;
   flex-direction: column;
   gap: 6px;
+  flex: 1;
+  min-height: 0;
   overflow-y: auto;
 }
 
@@ -634,7 +643,7 @@
   }
 
   .menu-header {
-    justify-content: flex-end;
+    justify-content: space-between;
     gap: 12px;
     padding: 20px 24px;
   }
@@ -660,6 +669,8 @@
 
   .category-sidebar {
     padding: 20px;
+    height: calc(100vh - 270px);
+    min-height: 420px;
   }
 
   .category-sidebar__list {
