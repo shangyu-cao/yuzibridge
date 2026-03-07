@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import CategorySidebar from "./category/CategorySidebar";
 import MenuItemCard from "./item/MenuItemCard";
 import MenuFooter, { type SocialLink } from "./layout/MenuFooter";
@@ -572,6 +572,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [usingFallback, setUsingFallback] = useState<boolean>(false);
   const [retryToken, setRetryToken] = useState(0);
+  const menuContentRef = useRef<HTMLElement | null>(null);
 
   useEffect(() => {
     let ignore = false;
@@ -703,6 +704,19 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
       setActiveCategoryId(categories[0]?.id ?? "");
     }
   }, [activeCategoryId, categories]);
+
+  useEffect(() => {
+    const contentNode = menuContentRef.current;
+    if (!contentNode) return;
+    const prefersReducedMotion =
+      typeof window !== "undefined" &&
+      window.matchMedia &&
+      window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+    contentNode.scrollTo({
+      top: 0,
+      behavior: prefersReducedMotion ? "auto" : "smooth",
+    });
+  }, [activeCategoryId]);
 
   const activeCategory = useMemo(() => {
     if (!menuPayload?.categories.length) {
@@ -864,7 +878,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
             onCategorySelect={setActiveCategoryId}
           />
 
-          <section className="menu-content" aria-live="polite">
+          <section className="menu-content" aria-live="polite" ref={menuContentRef}>
             {isLoading ? (
               <p className="menu-status">{uiCopy.loadingText}</p>
             ) : (

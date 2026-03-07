@@ -1,4 +1,5 @@
 .menu-page {
+  height: 100dvh;
   min-height: 100vh;
   width: 100%;
   padding: 12px;
@@ -8,6 +9,7 @@
   font-size: 16px;
   line-height: 1.5;
   -webkit-text-size-adjust: 100%;
+  overflow: hidden;
 }
 
 .menu-page img {
@@ -17,12 +19,15 @@
 
 .menu-shell {
   width: 100%;
+  height: 100%;
   max-width: 1180px;
   margin: 0 auto;
   background: #ffffff;
   border-radius: 14px;
   box-shadow: 0 8px 24px rgba(17, 24, 39, 0.08);
   overflow: hidden;
+  display: flex;
+  flex-direction: column;
 }
 
 /* ===== Header ===== */
@@ -100,8 +105,10 @@
 .menu-main {
   display: grid;
   grid-template-columns: 110px minmax(0, 1fr);
-  min-height: 520px;
+  flex: 1;
+  min-height: 0;
   align-items: start;
+  overflow: hidden;
 }
 
 /* ===== CategorySidebar ===== */
@@ -109,11 +116,11 @@
   border-right: 1px solid #e5e7eb;
   padding: 10px 8px;
   background: #f8f8f8;
-  height: calc(100vh - 230px);
-  min-height: 360px;
-  max-height: 760px;
+  height: 100%;
+  min-height: 0;
   display: flex;
   flex-direction: column;
+  overflow: hidden;
 }
 
 .category-sidebar__title {
@@ -179,6 +186,10 @@
 /* ===== Right menu content ===== */
 .menu-content {
   padding: 10px;
+  height: 100%;
+  min-height: 0;
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
 }
 
 .menu-content__title {
@@ -664,13 +675,10 @@
 
   .menu-main {
     grid-template-columns: 250px 1fr;
-    min-height: 540px;
   }
 
   .category-sidebar {
     padding: 20px;
-    height: calc(100vh - 270px);
-    min-height: 420px;
   }
 
   .category-sidebar__list {
