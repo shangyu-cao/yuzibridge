@@ -211,7 +211,7 @@ const UI_COPY: Record<string, UiCopy> = {
     errorText: "菜单数据加载失败",
     fallbackText: "当前显示演示数据，请检查后端服务和数据库连接。",
     retryText: "重试",
-    addToOrderText: "加入购物篮",
+    addToOrderText: "加入购物车",
     orderLabel: "订单",
     orderItemsLabel: "份",
     orderEmptyText: "购物篮为空",
@@ -563,6 +563,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
   const [activeCategoryId, setActiveCategoryId] = useState<string>("");
   const [basketQuantities, setBasketQuantities] = useState<Record<string, number>>({});
   const [isOrderExpanded, setIsOrderExpanded] = useState<boolean>(false);
+  const [detailItem, setDetailItem] = useState<PublicMenuItem | null>(null);
   const [tableCode, setTableCode] = useState<string>("");
   const [orderSubmitting, setOrderSubmitting] = useState<boolean>(false);
   const [orderSubmitMessage, setOrderSubmitMessage] = useState<string>("");
@@ -616,6 +617,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
   useEffect(() => {
     setBasketQuantities({});
     setIsOrderExpanded(false);
+    setDetailItem(null);
     setOrderSubmitMessage("");
     setOrderSubmitError("");
     const queryTable = new URLSearchParams(window.location.search).get("table");
@@ -775,6 +777,20 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
     }));
   };
 
+  const openItemDetail = (item: PublicMenuItem) => {
+    setDetailItem(item);
+  };
+
+  const closeItemDetail = () => {
+    setDetailItem(null);
+  };
+
+  const handleAddToCartFromDetail = () => {
+    if (!detailItem) return;
+    addItemToBasket(detailItem.id);
+    setDetailItem(null);
+  };
+
   const removeItemFromBasket = (itemId: string) => {
     setBasketQuantities((current) => {
       const quantity = current[itemId] ?? 0;
@@ -883,7 +899,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
                         allergens={item.allergens}
                         imageUrl={item.imageUrl ?? undefined}
                         addButtonText={uiCopy.addToOrderText}
-                        onAddToBasket={() => addItemToBasket(item.id)}
+                        onAddToBasket={() => openItemDetail(item)}
                       />
                     ))}
                   </div>
@@ -906,6 +922,43 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
           socialPlaceholder={uiCopy.socialPlaceholder}
         />
       </div>
+
+      {detailItem ? (
+        <div className="menu-item-modal" role="dialog" aria-modal="true" onClick={closeItemDetail}>
+          <div className="menu-item-modal__card" onClick={(event) => event.stopPropagation()}>
+            <button
+              type="button"
+              className="menu-item-modal__close"
+              aria-label="Close"
+              onClick={closeItemDetail}
+            >
+              ×
+            </button>
+
+            {detailItem.imageUrl ? (
+              <img className="menu-item-modal__image" src={detailItem.imageUrl} alt={detailItem.name} />
+            ) : null}
+
+            <div className="menu-item-modal__content">
+              <h3 className="menu-item-modal__name">{detailItem.name}</h3>
+              {detailItem.description ? (
+                <p className="menu-item-modal__description">{detailItem.description}</p>
+              ) : null}
+              <p className="menu-item-modal__price">
+                {formatMoneyMinor(detailItem.priceMinor, detailItem.currency, selectedLanguage)}
+              </p>
+            </div>
+
+            <button
+              type="button"
+              className="menu-item-modal__add-button"
+              onClick={handleAddToCartFromDetail}
+            >
+              {uiCopy.addToOrderText}
+            </button>
+          </div>
+        </div>
+      ) : null}
 
       {basketItemsCount > 0 ? (
         <section className={`order-drawer ${isOrderExpanded ? "order-drawer--expanded" : ""}`}>

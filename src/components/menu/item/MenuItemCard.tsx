@@ -19,7 +19,6 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
   price,
   currency = "USD",
   locale = "en-US",
-  allergens = [],
   imageUrl,
   onClick,
   addButtonText = "Add",
@@ -36,25 +35,18 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
 
   return (
     <article className="menu-item-card" onClick={onClick}>
-      {imageUrl ? <img className="menu-item-card__image" src={imageUrl} alt={name} /> : null}
+      <div className="menu-item-card__row">
+        {imageUrl ? (
+          <img className="menu-item-card__image" src={imageUrl} alt={name} />
+        ) : (
+          <div className="menu-item-card__image menu-item-card__image--placeholder" aria-hidden="true" />
+        )}
 
-      <div className="menu-item-card__content">
-        <div className="menu-item-card__top-row">
+        <div className="menu-item-card__content">
           <h3 className="menu-item-card__name">{name}</h3>
+          {description ? <p className="menu-item-card__description">{description}</p> : null}
           <span className="menu-item-card__price">{displayPrice}</span>
         </div>
-
-        {description ? <p className="menu-item-card__description">{description}</p> : null}
-
-        {allergens.length > 0 ? (
-          <ul className="menu-item-card__allergens" aria-label="Allergens">
-            {allergens.map((allergen) => (
-              <li key={allergen} className="menu-item-card__allergen-tag">
-                {allergen}
-              </li>
-            ))}
-          </ul>
-        ) : null}
 
         {onAddToBasket ? (
           <div className="menu-item-card__actions">
@@ -65,8 +57,9 @@ const MenuItemCard: React.FC<MenuItemCardProps> = ({
                 event.stopPropagation();
                 onAddToBasket();
               }}
+              aria-label={addButtonText}
             >
-              {addButtonText}
+              +
             </button>
           </div>
         ) : null}
