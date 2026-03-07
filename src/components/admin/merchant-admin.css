@@ -778,6 +778,7 @@
   background: #111827;
   color: #fff;
   cursor: pointer;
+  transition: background-color 0.16s ease, border-color 0.16s ease, color 0.16s ease;
 }
 
 .merchant-admin-page button.secondary {
@@ -788,6 +789,25 @@
 
 .merchant-admin-page button.danger {
   background: #b91c1c;
+}
+
+.merchant-admin-page button:hover:not(:disabled) {
+  background: #1f2937;
+}
+
+.merchant-admin-page button.secondary:hover:not(:disabled) {
+  background: #f3f4f6;
+  border-color: #9ca3af;
+  color: #111827;
+}
+
+.merchant-admin-page button.danger:hover:not(:disabled) {
+  background: #991b1b;
+}
+
+.merchant-admin-page button:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
 }
 
 @media (max-width: 1080px) {

@@ -447,6 +447,24 @@ const MerchantItemsAdmin = () => {
     setIsItemEditorOpen(true);
   };
 
+  const toggleCategoryEditor = () => {
+    if (isCategoryEditorOpen) {
+      setIsCategoryEditorOpen(false);
+      resetCategoryForm();
+      return;
+    }
+    openCategoryCreator();
+  };
+
+  const toggleItemEditor = () => {
+    if (isItemEditorOpen) {
+      setIsItemEditorOpen(false);
+      resetItemForm();
+      return;
+    }
+    openItemCreator();
+  };
+
   const handleLogin = async (event) => {
     event.preventDefault();
     setLoginLoading(true);
@@ -1002,6 +1020,39 @@ const MerchantItemsAdmin = () => {
     }
   };
 
+  const handleCopyTableLinks = async () => {
+    if (!tables.length) {
+      setErrorMessage("暂无可导出的桌号链接");
+      return;
+    }
+
+    const content = tables
+      .map((table) => `${table.tableCode}\t${toAbsoluteMenuUrl(table.targetUrl)}`)
+      .join("\n");
+
+    try {
+      if (navigator.clipboard?.writeText) {
+        await navigator.clipboard.writeText(content);
+      } else {
+        const textarea = document.createElement("textarea");
+        textarea.value = content;
+        textarea.setAttribute("readonly", "true");
+        textarea.style.position = "fixed";
+        textarea.style.opacity = "0";
+        document.body.appendChild(textarea);
+        textarea.select();
+        document.execCommand("copy");
+        document.body.removeChild(textarea);
+      }
+      setSuccessMessage(`已复制 ${tables.length} 条桌号链接`);
+      showToast("success", "桌号链接已复制");
+    } catch (error) {
+      const message = error?.message || "复制桌号链接失败";
+      setErrorMessage(message);
+      showToast("error", message);
+    }
+  };
+
   const handleSubmitStoreProfile = async (event) => {
     event.preventDefault();
     if (!selectedStoreId) {
@@ -1496,9 +1547,14 @@ const MerchantItemsAdmin = () => {
           <section className="merchant-admin-card">
             <div className="merchant-admin-table-header">
               <h2>桌号管理</h2>
-              <button type="button" className="secondary" onClick={loadData} disabled={loading}>
-                {loading ? "刷新中..." : "刷新"}
-              </button>
+              <div className="merchant-admin-table-header-actions">
+                <button type="button" className="secondary" onClick={handleCopyTableLinks}>
+                  一键导出链接
+                </button>
+                <button type="button" className="secondary" onClick={loadData} disabled={loading}>
+                  {loading ? "刷新中..." : "刷新"}
+                </button>
+              </div>
             </div>
 
             <form onSubmit={handleGenerateTables} className="merchant-admin-table-generator">
@@ -1572,8 +1628,8 @@ const MerchantItemsAdmin = () => {
                   <button type="button" className="secondary" onClick={loadData} disabled={loading}>
                     {loading ? "刷新中..." : "刷新"}
                   </button>
-                  <button type="button" className="secondary" onClick={openCategoryCreator}>
-                    新增分类
+                  <button type="button" className="secondary" onClick={toggleCategoryEditor}>
+                    {isCategoryEditorOpen ? "取消" : "新增分类"}
                   </button>
                 </div>
               </div>
@@ -1703,8 +1759,8 @@ const MerchantItemsAdmin = () => {
                   <button type="button" className="secondary" onClick={loadData} disabled={loading}>
                     {loading ? "刷新中..." : "刷新"}
                   </button>
-                  <button type="button" className="secondary" onClick={openItemCreator}>
-                    新增菜品
+                  <button type="button" className="secondary" onClick={toggleItemEditor}>
+                    {isItemEditorOpen ? "取消" : "新增菜品"}
                   </button>
                 </div>
               </div>
