@@ -1,5 +1,4 @@
 .menu-page {
-  --menu-bottom-space: 12px;
   height: 100dvh;
   min-height: 100vh;
   width: 100%;
@@ -7,17 +6,13 @@
   display: flex;
   flex-direction: column;
   padding: 12px;
-  padding-bottom: calc(var(--menu-bottom-space) + env(safe-area-inset-bottom));
+  padding-bottom: calc(12px + env(safe-area-inset-bottom));
   background: #f5f7fb;
   color: #111827;
-  font-size: 16px;
-  line-height: 1.5;
+  font-size: 14px;
+  line-height: 1.35;
   -webkit-text-size-adjust: 100%;
   overflow: hidden;
-}
-
-.menu-page--with-order {
-  --menu-bottom-space: 138px;
 }
 
 .menu-page img {
@@ -76,7 +71,7 @@
 
 .menu-header__store-name {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.92rem;
   line-height: 1.2;
   white-space: nowrap;
   overflow: hidden;
@@ -107,7 +102,7 @@
   padding: 10px 10px;
   background: #fff;
   color: #111827;
-  font-size: 0.95rem;
+  font-size: 0.86rem;
 }
 
 /* ===== Main ===== */
@@ -134,7 +129,7 @@
 
 .category-sidebar__title {
   margin: 0 0 8px;
-  font-size: 0.95rem;
+  font-size: 0.84rem;
   color: #111827;
 }
 
@@ -166,7 +161,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 6px;
-  font-size: 0.95rem;
+  font-size: 0.84rem;
   white-space: normal;
   text-align: left;
   cursor: pointer;
@@ -182,14 +177,14 @@
 }
 
 .category-sidebar__count {
-  font-size: 0.85rem;
+  font-size: 0.74rem;
   color: #4b5563;
 }
 
 .category-sidebar__empty {
   margin: 0;
   color: #6b7280;
-  font-size: 1rem;
+  font-size: 0.86rem;
 }
 
 /* ===== Right menu content ===== */
@@ -203,7 +198,7 @@
 
 .menu-content__title {
   margin: 0 0 10px;
-  font-size: 1rem;
+  font-size: 0.9rem;
 }
 
 .menu-content__grid {
@@ -215,13 +210,13 @@
 .menu-content__empty {
   margin: 0;
   color: #6b7280;
-  font-size: 1rem;
+  font-size: 0.86rem;
 }
 
 .menu-status {
   margin: 0 0 12px;
   color: #374151;
-  font-size: 1rem;
+  font-size: 0.86rem;
 }
 
 .menu-status--error {
@@ -239,14 +234,14 @@
   color: #7f1d1d;
   border-radius: 10px;
   padding: 10px 14px;
-  font-size: 1rem;
+  font-size: 0.84rem;
   cursor: pointer;
 }
 
 .menu-hint {
   margin: 0 0 12px;
   color: #92400e;
-  font-size: 1rem;
+  font-size: 0.84rem;
 }
 
 /* ===== MenuItemCard ===== */
@@ -284,7 +279,7 @@
 
 .menu-item-card__name {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.9rem;
   line-height: 1.2;
 }
 
@@ -293,14 +288,14 @@
   margin-top: 6px;
   color: #0f766e;
   font-weight: 600;
-  font-size: 1rem;
+  font-size: 0.88rem;
   white-space: nowrap;
 }
 
 .menu-item-card__description {
   margin: 6px 0 0;
   color: #4b5563;
-  font-size: 0.92rem;
+  font-size: 0.8rem;
   display: -webkit-box;
   -webkit-line-clamp: 2;
   -webkit-box-orient: vertical;
@@ -377,19 +372,19 @@
 
 .menu-item-modal__name {
   margin: 0;
-  font-size: 1.2rem;
+  font-size: 1rem;
 }
 
 .menu-item-modal__description {
   margin: 8px 0 0;
   color: #4b5563;
-  font-size: 1rem;
+  font-size: 0.88rem;
 }
 
 .menu-item-modal__price {
   margin: 10px 0 0;
   color: #0f766e;
-  font-size: 1.1rem;
+  font-size: 0.92rem;
   font-weight: 600;
 }
 
@@ -401,7 +396,7 @@
   border-radius: 12px;
   background: #111827;
   color: #fff;
-  font-size: 1rem;
+  font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;
 }
@@ -420,7 +415,7 @@
 .menu-footer__right p {
   margin: 0 0 6px;
   color: #4b5563;
-  font-size: 1rem;
+  font-size: 0.82rem;
 }
 
 .menu-footer__social-list {
@@ -445,7 +440,7 @@
   position: fixed;
   left: 0;
   right: 0;
-  bottom: calc(8px + env(safe-area-inset-bottom));
+  bottom: calc(56px + env(safe-area-inset-bottom));
   width: calc(100vw - 16px);
   max-width: 980px;
   margin-inline: auto;
@@ -468,7 +463,7 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  font-size: 1rem;
+  font-size: 0.86rem;
   cursor: pointer;
 }
 
@@ -489,27 +484,22 @@
   background: #fff;
 }
 
-.order-drawer__table-row {
+.order-drawer__panel-header {
   display: flex;
-  flex-direction: column;
-  align-items: stretch;
-  gap: 8px;
-  margin-bottom: 10px;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: 8px;
 }
 
-.order-drawer__table-row label {
-  font-size: 1rem;
-  color: #374151;
-}
-
-.order-drawer__table-row input {
-  width: 100%;
-  max-width: 220px;
-  min-height: 44px;
+.order-drawer__hide-button {
   border: 1px solid #d1d5db;
-  border-radius: 10px;
-  padding: 10px 12px;
-  font-size: 1rem;
+  background: #fff;
+  color: #374151;
+  border-radius: 8px;
+  padding: 6px 10px;
+  min-height: 44px;
+  font-size: 0.84rem;
+  cursor: pointer;
 }
 
 .order-drawer__message {
@@ -551,12 +541,12 @@
 
 .order-drawer__item-name {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.86rem;
 }
 
 .order-drawer__item-total {
   margin: 0;
-  font-size: 1rem;
+  font-size: 0.86rem;
   font-weight: 600;
   color: #065f46;
   white-space: nowrap;
@@ -584,12 +574,12 @@
 .order-drawer__qty-value {
   min-width: 22px;
   text-align: center;
-  font-size: 1rem;
+  font-size: 0.86rem;
 }
 
 .order-drawer__empty {
   color: #6b7280;
-  font-size: 1rem;
+  font-size: 0.86rem;
 }
 
 .order-drawer__confirm-button {
@@ -601,7 +591,7 @@
   padding: 10px 14px;
   background: #111827;
   color: #fff;
-  font-size: 1rem;
+  font-size: 0.88rem;
   font-weight: 600;
   cursor: pointer;
 }
@@ -617,13 +607,9 @@
 
 @media (min-width: 600px) {
   .menu-page {
-    --menu-bottom-space: 14px;
     padding: 16px;
-    padding-bottom: calc(var(--menu-bottom-space) + env(safe-area-inset-bottom));
-  }
-
-  .menu-page--with-order {
-    --menu-bottom-space: 142px;
+    padding-bottom: calc(14px + env(safe-area-inset-bottom));
+    font-size: 15px;
   }
 
   .menu-main {
@@ -653,19 +639,15 @@
 
   .order-drawer {
     width: calc(100vw - 24px);
-    bottom: calc(10px + env(safe-area-inset-bottom));
+    bottom: calc(60px + env(safe-area-inset-bottom));
   }
 }
 
 @media (min-width: 900px) {
   .menu-page {
-    --menu-bottom-space: 18px;
     padding: 24px;
-    padding-bottom: calc(var(--menu-bottom-space) + env(safe-area-inset-bottom));
-  }
-
-  .menu-page--with-order {
-    --menu-bottom-space: 120px;
+    padding-bottom: calc(18px + env(safe-area-inset-bottom));
+    font-size: 16px;
   }
 
   .menu-shell {
@@ -730,11 +712,6 @@
 
   .order-drawer {
     width: min(980px, calc(100vw - 32px));
-    bottom: 14px;
-  }
-
-  .order-drawer__table-row {
-    flex-direction: row;
-    align-items: center;
+    bottom: 64px;
   }
 }

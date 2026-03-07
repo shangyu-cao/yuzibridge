@@ -48,24 +48,6 @@ type PublicMenuResponse = {
   categories: PublicMenuCategory[];
 };
 
-type PublicCreateOrderResponse = {
-  orderId: string;
-  storeId: string;
-  storeSlug: string;
-  tableCode?: string | null;
-  status: string;
-  createdAt: string;
-  totalMinor: number;
-  currencyCode: string;
-  items: Array<{
-    menuItemId: string;
-    itemNameSnapshot: string;
-    priceMinor: number;
-    currencyCode: string;
-    quantity: number;
-  }>;
-};
-
 type MenuPageProps = {
   storeSlug: string;
 };
@@ -83,11 +65,8 @@ type UiCopy = {
   orderLabel: string;
   orderItemsLabel: string;
   orderEmptyText: string;
+  orderHideText: string;
   orderConfirmText: string;
-  tableCodeLabel: string;
-  orderSubmittingText: string;
-  orderSubmittedText: string;
-  orderSubmitErrorText: string;
 };
 
 const resolveApiBaseUrl = () => {
@@ -204,14 +183,11 @@ const UI_COPY: Record<string, UiCopy> = {
     fallbackText: "当前显示演示数据，请检查后端服务和数据库连接。",
     retryText: "重试",
     addToOrderText: "加入购物车",
-    orderLabel: "订单",
+    orderLabel: "购物车",
     orderItemsLabel: "份",
-    orderEmptyText: "购物篮为空",
+    orderEmptyText: "购物车为空",
+    orderHideText: "隐藏",
     orderConfirmText: "确定",
-    tableCodeLabel: "桌号",
-    orderSubmittingText: "提交中...",
-    orderSubmittedText: "下单成功，订单号：",
-    orderSubmitErrorText: "下单失败，请重试",
   },
   "en-US": {
     languageLabel: "Language",
@@ -223,14 +199,11 @@ const UI_COPY: Record<string, UiCopy> = {
     fallbackText: "Showing demo data. Please check backend service and database connection.",
     retryText: "Retry",
     addToOrderText: "Add to basket",
-    orderLabel: "Order",
+    orderLabel: "Cart",
     orderItemsLabel: "items",
     orderEmptyText: "Your basket is empty",
+    orderHideText: "Hide",
     orderConfirmText: "Confirm",
-    tableCodeLabel: "Table",
-    orderSubmittingText: "Submitting...",
-    orderSubmittedText: "Order submitted. Order ID: ",
-    orderSubmitErrorText: "Failed to submit order. Please retry.",
   },
   "ja-JP": {
     languageLabel: "言語",
@@ -242,14 +215,11 @@ const UI_COPY: Record<string, UiCopy> = {
     fallbackText: "現在はデモデータを表示しています。バックエンドとDB接続を確認してください。",
     retryText: "再試行",
     addToOrderText: "カートに追加",
-    orderLabel: "注文",
+    orderLabel: "カート",
     orderItemsLabel: "点",
     orderEmptyText: "カートは空です",
+    orderHideText: "閉じる",
     orderConfirmText: "確定",
-    tableCodeLabel: "テーブル",
-    orderSubmittingText: "送信中...",
-    orderSubmittedText: "注文が完了しました。注文ID: ",
-    orderSubmitErrorText: "注文に失敗しました。再試行してください。",
   },
   "ko-KR": {
     languageLabel: "언어",
@@ -261,14 +231,11 @@ const UI_COPY: Record<string, UiCopy> = {
     fallbackText: "데모 데이터를 표시 중입니다. 백엔드 서비스와 DB 연결을 확인하세요.",
     retryText: "다시 시도",
     addToOrderText: "장바구니에 추가",
-    orderLabel: "주문",
+    orderLabel: "장바구니",
     orderItemsLabel: "개",
     orderEmptyText: "장바구니가 비어 있습니다",
+    orderHideText: "숨기기",
     orderConfirmText: "확인",
-    tableCodeLabel: "테이블",
-    orderSubmittingText: "제출 중...",
-    orderSubmittedText: "주문이 접수되었습니다. 주문 ID: ",
-    orderSubmitErrorText: "주문 제출에 실패했습니다. 다시 시도해 주세요.",
   },
   "es-ES": {
     languageLabel: "Idioma",
@@ -280,14 +247,11 @@ const UI_COPY: Record<string, UiCopy> = {
     fallbackText: "Mostrando datos de demostración. Verifique el backend y la conexión de la base de datos.",
     retryText: "Reintentar",
     addToOrderText: "Agregar a la cesta",
-    orderLabel: "Pedido",
+    orderLabel: "Carrito",
     orderItemsLabel: "artículos",
     orderEmptyText: "Tu cesta está vacía",
+    orderHideText: "Ocultar",
     orderConfirmText: "Confirmar",
-    tableCodeLabel: "Mesa",
-    orderSubmittingText: "Enviando...",
-    orderSubmittedText: "Pedido enviado. ID del pedido: ",
-    orderSubmitErrorText: "No se pudo enviar el pedido. Inténtalo de nuevo.",
   },
   "fr-FR": {
     languageLabel: "Langue",
@@ -300,14 +264,11 @@ const UI_COPY: Record<string, UiCopy> = {
       "Affichage des données de démonstration. Vérifiez le service backend et la connexion à la base de données.",
     retryText: "Réessayer",
     addToOrderText: "Ajouter au panier",
-    orderLabel: "Commande",
+    orderLabel: "Panier",
     orderItemsLabel: "articles",
     orderEmptyText: "Votre panier est vide",
+    orderHideText: "Masquer",
     orderConfirmText: "Confirmer",
-    tableCodeLabel: "Table",
-    orderSubmittingText: "Envoi...",
-    orderSubmittedText: "Commande envoyée. ID : ",
-    orderSubmitErrorText: "Échec de l'envoi. Veuillez réessayer.",
   },
   "de-DE": {
     languageLabel: "Sprache",
@@ -319,14 +280,11 @@ const UI_COPY: Record<string, UiCopy> = {
     fallbackText: "Demo-Daten werden angezeigt. Bitte Backend und Datenbankverbindung prüfen.",
     retryText: "Erneut versuchen",
     addToOrderText: "In den Warenkorb",
-    orderLabel: "Bestellung",
+    orderLabel: "Warenkorb",
     orderItemsLabel: "Artikel",
     orderEmptyText: "Ihr Warenkorb ist leer",
+    orderHideText: "Ausblenden",
     orderConfirmText: "Bestätigen",
-    tableCodeLabel: "Tisch",
-    orderSubmittingText: "Wird gesendet...",
-    orderSubmittedText: "Bestellung gesendet. Bestell-ID: ",
-    orderSubmitErrorText: "Bestellung fehlgeschlagen. Bitte erneut versuchen.",
   },
   "ar-SA": {
     languageLabel: "اللغة",
@@ -338,14 +296,11 @@ const UI_COPY: Record<string, UiCopy> = {
     fallbackText: "يتم عرض بيانات تجريبية. يرجى التحقق من الخادم وقاعدة البيانات.",
     retryText: "إعادة المحاولة",
     addToOrderText: "أضف إلى السلة",
-    orderLabel: "الطلب",
+    orderLabel: "السلة",
     orderItemsLabel: "عناصر",
     orderEmptyText: "السلة فارغة",
+    orderHideText: "إخفاء",
     orderConfirmText: "تأكيد",
-    tableCodeLabel: "الطاولة",
-    orderSubmittingText: "جارٍ الإرسال...",
-    orderSubmittedText: "تم إرسال الطلب. رقم الطلب: ",
-    orderSubmitErrorText: "فشل إرسال الطلب. يرجى المحاولة مرة أخرى.",
   },
 };
 
@@ -450,42 +405,6 @@ const buildMenuPath = (storeSlug: string, languageCode: string, dynamicTranslate
   return `/api/public/stores/${encodeURIComponent(storeSlug)}/menu?${params.toString()}`;
 };
 
-const postJson = async <T,>(path: string, body: unknown): Promise<T> => {
-  let response: Response;
-  try {
-    response = await fetch(`${API_BASE_URL}${path}`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-  } catch (error) {
-    if (error instanceof TypeError) {
-      throw new Error(`无法连接后端服务（${API_BASE_URL}）`);
-    }
-    throw error;
-  }
-
-  if (!response.ok) {
-    let message = `HTTP ${response.status}`;
-    try {
-      const payload = await response.json();
-      if (payload?.message) {
-        message = payload.message;
-      }
-    } catch {
-      const text = await response.text();
-      if (text) {
-        message = text;
-      }
-    }
-    throw new Error(message);
-  }
-
-  return response.json();
-};
-
 const toLanguageOptions = (payload: PublicLanguageResponse): LanguageOption[] => {
   if (!payload.languages.length) {
     return FALLBACK_LANGUAGES;
@@ -516,10 +435,6 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
   const [basketQuantities, setBasketQuantities] = useState<Record<string, number>>({});
   const [isOrderExpanded, setIsOrderExpanded] = useState<boolean>(false);
   const [detailItem, setDetailItem] = useState<PublicMenuItem | null>(null);
-  const [tableCode, setTableCode] = useState<string>("");
-  const [orderSubmitting, setOrderSubmitting] = useState<boolean>(false);
-  const [orderSubmitMessage, setOrderSubmitMessage] = useState<string>("");
-  const [orderSubmitError, setOrderSubmitError] = useState<string>("");
   const [isLoading, setIsLoading] = useState<boolean>(true);
   const [errorMessage, setErrorMessage] = useState<string>("");
   const [usingFallback, setUsingFallback] = useState<boolean>(false);
@@ -571,10 +486,6 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
     setBasketQuantities({});
     setIsOrderExpanded(false);
     setDetailItem(null);
-    setOrderSubmitMessage("");
-    setOrderSubmitError("");
-    const queryTable = new URLSearchParams(window.location.search).get("table");
-    setTableCode(queryTable ?? "");
   }, [storeSlug]);
 
   useEffect(() => {
@@ -773,44 +684,34 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
     });
   };
 
-  const handleConfirmOrder = async () => {
-    if (!basketLineItems.length || orderSubmitting) {
+  const handleConfirmOrder = () => {
+    if (!basketLineItems.length) {
       return;
     }
-
-    setOrderSubmitting(true);
-    setOrderSubmitError("");
-    setOrderSubmitMessage("");
-
-    try {
-      const payload = {
-        tableCode: tableCode.trim() || null,
-        items: basketLineItems.map((line) => ({
-          menuItemId: line.id,
-          quantity: line.quantity,
-        })),
-      };
-
-      const response = await postJson<PublicCreateOrderResponse>(
-        `/api/public/stores/${encodeURIComponent(storeSlug)}/orders`,
-        payload,
-      );
-
-      setOrderSubmitMessage(`${uiCopy.orderSubmittedText}${response.orderId}`);
-      window.alert(`${uiCopy.orderSubmittedText}${response.orderId}`);
-      setBasketQuantities({});
-      setIsOrderExpanded(false);
-    } catch (_error) {
-      setOrderSubmitError(uiCopy.orderSubmitErrorText);
-    } finally {
-      setOrderSubmitting(false);
-    }
+    const checkoutPreview = {
+      storeSlug,
+      storeName,
+      language: selectedLanguage,
+      currency: basketCurrency,
+      totalMinor: basketTotalMinor,
+      items: basketLineItems.map((line) => ({
+        id: line.id,
+        name: line.name,
+        quantity: line.quantity,
+        lineTotalMinor: line.lineTotalMinor,
+        currency: line.currency,
+      })),
+    };
+    sessionStorage.setItem("menu_checkout_preview", JSON.stringify(checkoutPreview));
+    window.location.assign(
+      `/menu-confirm?store=${encodeURIComponent(storeSlug)}&lang=${encodeURIComponent(selectedLanguage)}`,
+    );
   };
 
   const storeName = menuPayload?.store.name ?? storeSlug;
 
   return (
-    <div className={`menu-page ${basketItemsCount > 0 ? "menu-page--with-order" : ""}`}>
+    <div className="menu-page">
       <div className="menu-shell">
         <MenuHeader
           storeName={storeName}
@@ -940,21 +841,16 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
 
           {isOrderExpanded ? (
             <div className="order-drawer__panel">
-              <div className="order-drawer__table-row">
-                <label htmlFor="order-table-code">{uiCopy.tableCodeLabel}</label>
-                <input
-                  id="order-table-code"
-                  type="text"
-                  value={tableCode}
-                  onChange={(event) => setTableCode(event.target.value)}
-                  placeholder="A1"
-                />
+              <div className="order-drawer__panel-header">
+                <strong>{uiCopy.orderLabel}</strong>
+                <button
+                  type="button"
+                  className="order-drawer__hide-button"
+                  onClick={() => setIsOrderExpanded(false)}
+                >
+                  {uiCopy.orderHideText}
+                </button>
               </div>
-
-              {orderSubmitError ? <p className="order-drawer__message error">{orderSubmitError}</p> : null}
-              {orderSubmitMessage ? (
-                <p className="order-drawer__message success">{orderSubmitMessage}</p>
-              ) : null}
 
               <ul className="order-drawer__items">
                 {basketLineItems.length ? (
@@ -994,10 +890,9 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
               <button
                 type="button"
                 className="order-drawer__confirm-button"
-                disabled={orderSubmitting}
                 onClick={handleConfirmOrder}
               >
-                {orderSubmitting ? uiCopy.orderSubmittingText : uiCopy.orderConfirmText}
+                {uiCopy.orderConfirmText}
               </button>
             </div>
           ) : null}

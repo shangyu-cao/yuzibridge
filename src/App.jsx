@@ -2,6 +2,7 @@ import React from "react";
 import "./App.css";
 import logo from "./assets/logo.png";
 import MenuPage from "./components/menu/MenuPage";
+import MenuConfirmPage from "./components/menu/MenuConfirmPage";
 import MerchantItemsAdmin from "./components/admin/MerchantItemsAdmin";
 import MerchantRegisterPage from "./components/admin/MerchantRegisterPage";
 
@@ -36,6 +37,11 @@ const isMerchantAdminPath = (pathname) => {
 const isMerchantRegisterPath = (pathname) => {
   const normalizedPath = pathname.replace(/\/+$/, "");
   return normalizedPath === "/merchant-register" || normalizedPath.startsWith("/merchant-register/");
+};
+
+const isMenuConfirmPath = (pathname) => {
+  const normalizedPath = pathname.replace(/\/+$/, "");
+  return normalizedPath === "/menu-confirm" || normalizedPath.startsWith("/menu-confirm/");
 };
 
 const FEATURE_ITEMS = [
@@ -73,6 +79,10 @@ function App() {
 
   if (isMerchantAdminPath(window.location.pathname)) {
     return <MerchantItemsAdmin />;
+  }
+
+  if (isMenuConfirmPath(window.location.pathname)) {
+    return <MenuConfirmPage />;
   }
 
   const menuSlug = parseMenuSlugFromPath(window.location.pathname);
