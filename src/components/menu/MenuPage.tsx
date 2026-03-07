@@ -859,7 +859,7 @@ const MenuPage: React.FC<MenuPageProps> = ({ storeSlug }) => {
   const socialLinks = toSocialLinks(menuPayload?.store.socialLinks ?? []);
 
   return (
-    <div className="menu-page">
+    <div className={`menu-page ${basketItemsCount > 0 ? "menu-page--with-order" : ""}`}>
       <div className="menu-shell">
         <MenuHeader
           storeName={storeName}

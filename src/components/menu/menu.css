@@ -1,15 +1,23 @@
 .menu-page {
+  --menu-bottom-space: 12px;
   height: 100dvh;
   min-height: 100vh;
   width: 100%;
+  box-sizing: border-box;
+  display: flex;
+  flex-direction: column;
   padding: 12px;
-  padding-bottom: calc(138px + env(safe-area-inset-bottom));
+  padding-bottom: calc(var(--menu-bottom-space) + env(safe-area-inset-bottom));
   background: #f5f7fb;
   color: #111827;
   font-size: 16px;
   line-height: 1.5;
   -webkit-text-size-adjust: 100%;
   overflow: hidden;
+}
+
+.menu-page--with-order {
+  --menu-bottom-space: 138px;
 }
 
 .menu-page img {
@@ -19,7 +27,8 @@
 
 .menu-shell {
   width: 100%;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   max-width: 1180px;
   margin: 0 auto;
   background: #ffffff;
@@ -402,8 +411,8 @@
   border-top: 1px solid #e5e7eb;
   display: flex;
   flex-direction: column;
-  gap: 14px;
-  padding: 14px;
+  gap: 10px;
+  padding: 10px 12px;
   background: #fcfcfd;
 }
 
@@ -608,8 +617,13 @@
 
 @media (min-width: 600px) {
   .menu-page {
+    --menu-bottom-space: 14px;
     padding: 16px;
-    padding-bottom: calc(142px + env(safe-area-inset-bottom));
+    padding-bottom: calc(var(--menu-bottom-space) + env(safe-area-inset-bottom));
+  }
+
+  .menu-page--with-order {
+    --menu-bottom-space: 142px;
   }
 
   .menu-main {
@@ -645,8 +659,13 @@
 
 @media (min-width: 900px) {
   .menu-page {
+    --menu-bottom-space: 18px;
     padding: 24px;
-    padding-bottom: 120px;
+    padding-bottom: calc(var(--menu-bottom-space) + env(safe-area-inset-bottom));
+  }
+
+  .menu-page--with-order {
+    --menu-bottom-space: 120px;
   }
 
   .menu-shell {
