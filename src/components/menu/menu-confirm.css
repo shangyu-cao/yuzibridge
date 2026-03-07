@@ -1,0 +1,101 @@
+.menu-confirm-page {
+  min-height: 100dvh;
+  padding: 14px;
+  background: #f5f7fb;
+  color: #111827;
+  font-size: 14px;
+}
+
+.menu-confirm-card {
+  max-width: 720px;
+  margin: 0 auto;
+  background: #fff;
+  border-radius: 14px;
+  border: 1px solid #e5e7eb;
+  padding: 14px;
+}
+
+.menu-confirm-title {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.menu-confirm-store {
+  margin: 6px 0 0;
+  color: #4b5563;
+}
+
+.menu-confirm-list {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.menu-confirm-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+}
+
+.menu-confirm-item-name {
+  margin: 0;
+  font-size: 0.92rem;
+}
+
+.menu-confirm-item-qty {
+  margin: 2px 0 0;
+  color: #6b7280;
+  font-size: 0.84rem;
+}
+
+.menu-confirm-item-total {
+  margin: 0;
+  color: #065f46;
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.menu-confirm-summary {
+  margin-top: 12px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-top: 1px solid #e5e7eb;
+  padding-top: 10px;
+}
+
+.menu-confirm-empty {
+  margin: 14px 0 0;
+  color: #6b7280;
+}
+
+.menu-confirm-back-button {
+  margin-top: 14px;
+  width: 100%;
+  min-height: 44px;
+  border: 0;
+  border-radius: 10px;
+  background: #111827;
+  color: #fff;
+  font-size: 0.9rem;
+  font-weight: 600;
+  cursor: pointer;
+}
+
+@media (min-width: 900px) {
+  .menu-confirm-page {
+    padding: 24px;
+    font-size: 15px;
+  }
+
+  .menu-confirm-card {
+    padding: 20px;
+  }
+}

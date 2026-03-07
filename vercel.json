@@ -39,6 +39,14 @@
     {
       "source": "/menu-preview",
       "destination": "/index.html"
+    },
+    {
+      "source": "/menu-confirm/:path*",
+      "destination": "/index.html"
+    },
+    {
+      "source": "/menu-confirm",
+      "destination": "/index.html"
     }
   ]
 }
